@@ -13,6 +13,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -111,6 +112,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex, WebRequest request) {
         log.error("Erro interno não tratado interceptado pelo GlobalExceptionHandler:", ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno", request, List.of());
+    }
+
+    @ExceptionHandler(MissingRequestCookieException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingCookie(MissingRequestCookieException ex, WebRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "Sessão inválida ou expirada", request, List.of());
     }
 
     private FieldErrorResponse toFieldError(FieldError error) {
