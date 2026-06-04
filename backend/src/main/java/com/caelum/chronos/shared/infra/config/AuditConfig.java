@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorAware")
@@ -17,7 +18,8 @@ public class AuditConfig {
     AuditorAware<String> auditorAware() {
         return () -> {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() == null) {
+            if (auth == null || auth instanceof AnonymousAuthenticationToken || !auth.isAuthenticated()
+                    || auth.getPrincipal() == null) {
                 return Optional.of("system");
             }
             return Optional.ofNullable(auth.getName());

@@ -1,7 +1,11 @@
 package com.caelum.chronos.shared.infra.security;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,10 +15,18 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -24,27 +36,36 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityProperties properties) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http,
+            SecurityProperties properties,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
-                                "/v3/api-docs.yaml",
-                                "/webjars/**")
-                        .permitAll()
-                        .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().access((authentication, context) -> properties.permitAll()
-                                ? new org.springframework.security.authorization.AuthorizationDecision(true)
-                                : new org.springframework.security.authorization.AuthorizationDecision(
-                                        authentication.get().isAuthenticated())));
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(
+                            "/auth/**",
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/v3/api-docs/**",
+                            "/v3/api-docs.yaml",
+                            "/webjars/**",
+                            "/actuator/health/**",
+                            "/actuator/info")
+                            .permitAll();
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
+                    if (properties.permitAll()) {
+                        auth.anyRequest().permitAll();
+                    } else {
+                        auth.anyRequest().authenticated();
+                    }
+                });
 
         return http.build();
     }
@@ -58,6 +79,18 @@ public class SecurityConfig {
                 cfg.parallelism(),
                 cfg.memory(),
                 cfg.iterations());
+    }
+
+    @Bean
+    JwtEncoder jwtEncoder(SecurityProperties properties) {
+        SecretKey key = secretKey(properties.jwt().secret());
+        return new NimbusJwtEncoder(new ImmutableSecret<>(key));
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(SecurityProperties properties) {
+        SecretKey key = secretKey(properties.jwt().secret());
+        return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
     }
 
     private CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
@@ -81,5 +114,9 @@ public class SecurityConfig {
                 .filter(v -> v != null && !v.isBlank())
                 .map(String::trim)
                 .collect(Collectors.toList());
+    }
+
+    private SecretKey secretKey(String secret) {
+        return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 }
