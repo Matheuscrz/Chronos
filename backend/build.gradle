@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.14'
+    id 'org.springframework.boot' version '3.4.5'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -19,7 +19,7 @@ repositories {
 
 ext {
     testcontainersVersion = '1.20.1'
-    springdocVersion = '2.6.0'
+    springdocVersion = '2.8.8'
 }
 
 dependencies {
