@@ -60,7 +60,7 @@ services:
 
   # --- Fase 8: Armazenamento de Arquivos ---
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-05-29T08-35-25Z
+    image: minio/minio:latest
     container_name: chronos-minio
     command: server /data --console-address ":9001"
     environment:
