@@ -21,10 +21,21 @@ public final class LogContext {
     }
 
     public static String getOrCreateCorrelationId(HttpServletRequest request) {
-        String correlationId = request.getHeader(HEADER_CORRELATION_ID);
-        if (correlationId == null || correlationId.isBlank()) {
+        if (request == null) {
             return UUID.randomUUID().toString();
         }
+
+        Object attr = request.getAttribute(CORRELATION_ID);
+        if (attr instanceof String cid) {
+            return cid;
+        }
+
+        String correlationId = request.getHeader(HEADER_CORRELATION_ID);
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        
+        request.setAttribute(CORRELATION_ID, correlationId);
         return correlationId;
     }
 

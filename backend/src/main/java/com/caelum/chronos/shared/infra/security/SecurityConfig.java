@@ -2,16 +2,15 @@ package com.caelum.chronos.shared.infra.security;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,13 +21,12 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
-
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 /**
  * Configuração de segurança para a aplicação, definindo as regras de
@@ -66,7 +64,8 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(cookieCsrfTokenRepository()))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
@@ -77,6 +76,7 @@ public class SecurityConfig {
                             "/auth/**",
                             "/swagger-ui/**",
                             "/swagger-ui.html",
+                            "/v3/api-docs",
                             "/v3/api-docs/**",
                             "/v3/api-docs.yaml",
                             "/webjars/**",
@@ -131,6 +131,10 @@ public class SecurityConfig {
         return source;
     }
 
+    private CookieCsrfTokenRepository cookieCsrfTokenRepository() {
+        return new CookieCsrfTokenRepository();
+    }
+
     private List<String> normalize(List<String> values) {
         if (values == null) {
             return List.of();
@@ -138,7 +142,7 @@ public class SecurityConfig {
         return values.stream()
                 .filter(v -> v != null && !v.isBlank())
                 .map(String::trim)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private SecretKey secretKey(String secret) {

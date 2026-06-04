@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BillingServiceImpl implements BillingService {
 
+    private static final String ACCOUNT_NOT_FOUND = "account not found";
+
     private final BillingAccountRepository billingAccountRepository;
     private final UserRepository userRepository;
 
@@ -51,7 +53,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional
     public AccountResponse deposit(UUID accountId, MoneyOperationRequest req) {
         BillingAccount account = billingAccountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("account not found"));
+                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 
         account.deposit(req.amount());
         account = billingAccountRepository.save(account);
@@ -63,7 +65,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional
     public AccountResponse withdraw(UUID accountId, MoneyOperationRequest req) {
         BillingAccount account = billingAccountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("account not found"));
+                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 
         account.withdraw(req.amount());
         account = billingAccountRepository.save(account);
@@ -75,7 +77,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional(readOnly = true)
     public AccountResponse findById(UUID accountId) {
         BillingAccount account = billingAccountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("account not found"));
+                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 
         return toResponse(account);
     }

@@ -15,15 +15,24 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        default_schema: ${app.database.schema}
 
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    create-schemas: true
+    default-schema: ${app.database.schema}
+    schemas: ${app.database.schema}
+    placeholders:
+      app_schema: ${app.database.schema}
 
 server:
-  port: ${SERVER_PORT:8081}
-  forward-headers-strategy: framework
+  port: 8081
 
 app:
+  database:
+    schema: ${APP_DB_SCHEMA:chronos_app}
+
   security:
     permit-all: false
     cors:

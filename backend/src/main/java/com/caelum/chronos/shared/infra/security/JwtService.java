@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
  * necessárias, e o JwtDecoder para decodificar e validar os tokens recebidos
  * nas requisições. O serviço também inclui métodos auxiliares para verificar o
  * tipo do token (access ou refresh) e para extrair o ID do usuário a partir do
- * token, facilitando a autenticação e autorização em todo o sistema. Este
+ * token, facilitando a autenticação e autorização em toda a aplicação. Este
  * serviço é utilizado pelo controlador de autenticação para gerar e validar os
  * tokens JWT durante as operações de login, refresh e acesso a recursos
  * protegidos.

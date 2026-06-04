@@ -47,8 +47,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return HttpMethod.OPTIONS.matches(method)
                 || path.equals("/auth")
                 || path.startsWith("/auth/")
-                || path.startsWith("/swagger-ui/")
+                || path.equals("/v3/api-docs")
                 || path.startsWith("/v3/api-docs/")
+                || path.startsWith("/swagger-ui/")
                 || path.startsWith("/webjars/")
                 || path.startsWith("/actuator/health")
                 || path.startsWith("/actuator/info");
@@ -77,8 +78,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (JwtException ex) {
             SecurityContextHolder.clearContext();
             filterChain.doFilter(request, response);
-        } finally {
-            SecurityContextHolder.clearContext();
         }
     }
 

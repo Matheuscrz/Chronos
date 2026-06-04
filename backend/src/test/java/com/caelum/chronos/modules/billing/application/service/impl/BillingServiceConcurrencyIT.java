@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
+import com.caelum.chronos.backend.BackendApplication;
 import com.caelum.chronos.modules.billing.application.dto.request.AccountCreateRequest;
 import com.caelum.chronos.modules.billing.application.dto.request.MoneyOperationRequest;
 import com.caelum.chronos.modules.billing.application.dto.response.AccountResponse;
@@ -22,8 +22,7 @@ import com.caelum.chronos.modules.users.domain.enums.UserRole;
 import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.modules.users.infra.UserRepository;
 
-@SpringBootTest
-@Testcontainers
+@SpringBootTest(classes = BackendApplication.class)
 @ActiveProfiles("test")
 class BillingServiceConcurrencyIT {
 
@@ -82,7 +81,6 @@ class BillingServiceConcurrencyIT {
             successCount++;
         else
             failureCount++;
-
         if (r2 instanceof AccountResponse)
             successCount++;
         else
@@ -111,8 +109,11 @@ class BillingServiceConcurrencyIT {
                 owner.getId(),
                 new BigDecimal("1000.00")));
 
+        UUID accountId = account.id();
+        MoneyOperationRequest withdrawRequest = new MoneyOperationRequest(new BigDecimal("2000.00"));
+
         assertThatThrownBy(
-                () -> billingService.withdraw(account.id(), new MoneyOperationRequest(new BigDecimal("2000.00"))))
+                () -> billingService.withdraw(accountId, withdrawRequest))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("insufficient funds");
     }

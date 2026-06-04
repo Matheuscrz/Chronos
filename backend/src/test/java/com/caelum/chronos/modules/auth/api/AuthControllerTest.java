@@ -24,6 +24,7 @@ import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.shared.infra.security.JwtCookieService;
 import com.caelum.chronos.shared.infra.security.JwtService;
 import com.caelum.chronos.shared.infra.security.SecurityProperties;
+import com.caelum.chronos.shared.api.error.GlobalExceptionHandler;
 
 class AuthControllerTest {
 
@@ -60,7 +61,9 @@ class AuthControllerTest {
                 new SecurityProperties.PasswordEncoder(16, 32, 1, 65536, 3));
 
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AuthController(userService, authService, jwtService, cookieService, securityProperties)).build();
+                new AuthController(userService, authService, jwtService, cookieService, securityProperties))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     @Test

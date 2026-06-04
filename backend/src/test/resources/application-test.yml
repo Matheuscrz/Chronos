@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chronos_db}
+    username: ${DB_USERNAME:chronos_user}
+    password: ${DB_PASSWORD:chronos_pass}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: ${app.database.schema}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    create-schemas: true
+    default-schema: ${app.database.schema}
+    schemas: ${app.database.schema}
+    placeholders:
+      app_schema: ${app.database.schema}
+
+app:
+  database:
+    schema: ${APP_DB_SCHEMA:chronos_app_test}
+
+logging:
+  level:
+    root: INFO
+    com.caelum.chronos: DEBUG
