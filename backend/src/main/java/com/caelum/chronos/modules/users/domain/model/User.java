@@ -9,6 +9,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -33,6 +34,8 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class User extends BaseEntity {
 
     @Column(name = "username", nullable = false, unique = true, length = 100)
@@ -51,12 +54,4 @@ public class User extends BaseEntity {
     @Column(name = "role", length = 50, nullable = false)
     private UserRole role;
 
-    @Builder
-    public User(String username, String fullName, String email, String passwordHash, UserRole role) {
-        this.username = username;
-        this.fullName = fullName;
-        this.email = email;
-        this.passwordHash = passwordHash;
-        this.role = role;
-    }
 }
