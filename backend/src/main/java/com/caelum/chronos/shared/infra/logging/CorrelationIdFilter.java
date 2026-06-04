@@ -9,6 +9,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Filtro responsável por gerar e propagar um Correlation ID para cada
+ * requisição HTTP. O Correlation ID é um identificador único que permite
+ * rastrear uma requisição através de diferentes serviços e componentes do
+ * sistema, facilitando a depuração e o monitoramento. Este filtro é executado
+ * uma vez por requisição e garante que o Correlation ID seja adicionado ao
+ * contexto de log e incluído nas respostas HTTP para que os clientes possam
+ * correlacionar as requisições com os logs gerados no servidor.
+ */
 @Component
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
