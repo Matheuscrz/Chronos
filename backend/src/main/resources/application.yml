@@ -33,6 +33,10 @@ management:
         enabled: true
 
 logging:
+  file:
+    path: ./logs
   level:
+    root: INFO
+    com.caelum.chronos: DEBUG
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
