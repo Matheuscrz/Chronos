@@ -7,9 +7,11 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.*;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.caelum.chronos.backend.BackendApplication;
@@ -35,6 +37,18 @@ class BillingServiceConcurrencyIT {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void limparDados() {
+        jdbcTemplate.execute("""
+                    TRUNCATE TABLE chronos_app_test.billing_accounts,
+                                   chronos_app_test.users
+                    RESTART IDENTITY CASCADE
+                """);
+    }
+
     @Test
     void naoDevePermitirGastarMaisDoQueSaldoComDuasOperacoesSimultaneas() throws Exception {
         User owner = userRepository.save(User.builder()
@@ -59,8 +73,9 @@ class BillingServiceConcurrencyIT {
             ready.countDown();
             start.await(5, TimeUnit.SECONDS);
             try {
-                return billingService.withdraw(accountId, new MoneyOperationRequest(new BigDecimal("1000.00")));
-            } catch (Exception ex) {
+                return billingService.withdraw(accountId,
+                        new MoneyOperationRequest(new BigDecimal("1000.00")));
+            } catch (Throwable ex) {
                 return ex;
             }
         };
