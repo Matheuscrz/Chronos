@@ -12,7 +12,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
  * Entidade que representa um usuário do sistema, contendo informações como nome
@@ -31,11 +30,11 @@ import lombok.Setter;
  * </ul>
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
+
     @Column(name = "username", nullable = false, unique = true, length = 100)
     private String username;
 
@@ -60,5 +59,4 @@ public class User extends BaseEntity {
         this.passwordHash = passwordHash;
         this.role = role;
     }
-
 }
