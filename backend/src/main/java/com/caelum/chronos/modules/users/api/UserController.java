@@ -12,6 +12,16 @@ import com.caelum.chronos.modules.users.application.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Controlador responsável por gerenciar as operações relacionadas aos usuários,
+ * incluindo consulta de perfil e busca por ID. Ele utiliza o serviço de
+ * usuários para realizar as operações necessárias e expõe endpoints REST para
+ * cada uma dessas operações, garantindo que apenas usuários autenticados possam
+ * acessar os recursos protegidos. O endpoint "/me" permite que o usuário
+ * autenticado consulte seu próprio perfil, enquanto o endpoint "/{id}" permite
+ * que
+ * um administrador consulte o perfil de qualquer usuário por ID.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/users")

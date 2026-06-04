@@ -21,6 +21,19 @@ import com.caelum.chronos.shared.exception.InvalidCredentialsException;
 import com.caelum.chronos.shared.exception.NotFoundException;
 import com.caelum.chronos.shared.infra.logging.LogContext;
 
+/**
+ * Classe responsável por interceptar e tratar exceções lançadas pelos
+ * controladores da aplicação. Ela utiliza a anotação @RestControllerAdvice para
+ * se registrar como um manipulador global de exceções, e define métodos
+ * específicos para tratar diferentes tipos de exceções, retornando respostas
+ * HTTP apropriadas com mensagens de erro detalhadas. O objetivo é fornecer uma
+ * maneira centralizada e consistente de lidar com erros em toda a aplicação,
+ * melhorando a experiência do usuário e facilitando a depuração. Cada método de
+ * tratamento de exceção constrói um objeto ApiErrorResponse contendo
+ * informações relevantes sobre o erro, como timestamp, status HTTP, mensagem de
+ * erro, caminho da requisição e detalhes de validação, e retorna esse objeto
+ * como resposta para o cliente.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

@@ -30,6 +30,31 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+/**
+ * Configuração de segurança para a aplicação, definindo as regras de
+ * autenticação
+ * e autorização, bem como os beans necessários para o funcionamento do sistema
+ * de
+ * segurança. Esta classe habilita a segurança baseada em JWT, configura os
+ * filtros de autenticação, define as políticas de CORS e gerencia a criação e
+ * validação dos tokens JWT. Ela também inclui a configuração do PasswordEncoder
+ * para garantir que as senhas dos usuários sejam armazenadas de forma segura
+ * utilizando o algoritmo Argon2. A anotação @EnableMethodSecurity é utilizada
+ * para habilitar a segurança em nível de método, permitindo o uso de anotações
+ * como @PreAuthorize e @PostAuthorize para controlar o acesso aos métodos com
+ * base nas autoridades do usuário. A anotação @EnableConfigurationProperties é
+ * utilizada para habilitar a configuração baseada em propriedades, permitindo
+ * que as configurações de segurança sejam definidas no arquivo application.yml
+ * e injetadas nos beans de segurança conforme necessário. O método
+ * securityFilterChain() define as regras de segurança para as requisições HTTP,
+ * enquanto os métodos passwordEncoder(), jwtEncoder() e jwtDecoder() definem os
+ * beans necessários para a codificação de senhas e a geração/validação de
+ * tokens JWT. O método corsConfigurationSource() configura as políticas de CORS
+ * para permitir que aplicação seja acessada de diferentes origens, conforme
+ * definido nas propriedades de segurança. O método secretKey() é um utilitário
+ * para criar a chave secreta utilizada na assinatura dos tokens JWT a partir de
+ * uma string definida nas propriedades de segurança.
+ */
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties(SecurityProperties.class)

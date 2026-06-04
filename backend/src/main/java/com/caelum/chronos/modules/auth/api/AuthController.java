@@ -10,14 +10,25 @@ import com.caelum.chronos.modules.users.application.dto.request.UserRegistration
 import com.caelum.chronos.modules.users.application.dto.response.UserResponse;
 import com.caelum.chronos.modules.users.application.service.UserService;
 import com.caelum.chronos.modules.users.domain.model.User;
+import com.caelum.chronos.shared.exception.InvalidCredentialsException;
 import com.caelum.chronos.shared.infra.security.JwtCookieService;
 import com.caelum.chronos.shared.infra.security.JwtService;
 import com.caelum.chronos.shared.infra.security.SecurityProperties;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Controlador responsável por gerenciar as operações de autenticação, incluindo
+ * registro, login, refresh de tokens e logout. Ele utiliza os serviços de
+ * autenticação
+ * e de usuários para realizar as operações necessárias e manipula os cookies de
+ * autenticação para manter a sessão do usuário. O controlador expõe endpoints
+ * REST para cada uma dessas operações, garantindo que apenas usuários
+ * autenticados possam acessar os recursos protegidos.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
@@ -40,13 +51,20 @@ public class AuthController {
         User user = authService.authenticate(request);
         setAuthCookies(user, response);
 
-        return ResponseEntity.ok(UserResponse.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .role(user.getRole())
-                .build());
+        return ResponseEntity.ok(toResponse(user));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<UserResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = resolveCookie(request, JwtCookieService.REFRESH_COOKIE);
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new InvalidCredentialsException();
+        }
+
+        User user = authService.refresh(refreshToken);
+        setAuthCookies(user, response);
+
+        return ResponseEntity.ok(toResponse(user));
     }
 
     @PostMapping("/logout")
@@ -62,5 +80,28 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookieService.createRefreshCookie(jwtService.generateRefreshToken(user), securityProperties)
                         .toString());
+    }
+
+    private UserResponse toResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
+
+    private String resolveCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) {
+            return null;
+        }
+
+        for (var cookie : request.getCookies()) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }

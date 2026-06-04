@@ -15,6 +15,18 @@ import com.caelum.chronos.modules.users.domain.model.User;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Serviço responsável por gerenciar a geração e validação de tokens JWT (JSON
+ * Web Tokens) para autenticação e autorização. Ele utiliza o JwtEncoder para
+ * criar tokens JWT contendo as informações do usuário e as reivindicações
+ * necessárias, e o JwtDecoder para decodificar e validar os tokens recebidos
+ * nas requisições. O serviço também inclui métodos auxiliares para verificar o
+ * tipo do token (access ou refresh) e para extrair o ID do usuário a partir do
+ * token, facilitando a autenticação e autorização em todo o sistema. Este
+ * serviço é utilizado pelo controlador de autenticação para gerar e validar os
+ * tokens JWT durante as operações de login, refresh e acesso a recursos
+ * protegidos.
+ */
 @Service
 @RequiredArgsConstructor
 public class JwtService {

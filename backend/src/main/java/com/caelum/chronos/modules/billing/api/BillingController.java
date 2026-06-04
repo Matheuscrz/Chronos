@@ -14,6 +14,13 @@ import com.caelum.chronos.modules.billing.application.service.BillingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Controlador responsável por gerenciar as operações relacionadas às contas de
+ * cobrança, incluindo criação de contas, depósitos, saques e consulta de saldo.
+ * Ele utiliza o serviço de cobrança para realizar as operações necessárias e
+ * expõe endpoints REST para cada uma dessas operações, garantindo que apenas
+ * usuários autenticados possam acessar os recursos protegidos.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/billing/accounts")

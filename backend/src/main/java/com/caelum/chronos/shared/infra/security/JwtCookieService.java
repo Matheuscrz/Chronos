@@ -5,6 +5,18 @@ import java.time.Duration;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
+/**
+ * Serviço responsável por criar e limpar os cookies de autenticação (access
+ * token e refresh token) utilizados para manter a sessão do usuário. Ele
+ * utiliza as
+ * propriedades de segurança para configurar os cookies de acordo com as
+ * necessidades do sistema, como tempo de vida, segurança e política de
+ * SameSite. Este serviço é utilizado pelo controlador de autenticação para
+ * gerenciar os cookies durante as
+ * operações de login, refresh e logout, garantindo que os cookies sejam
+ * configurados corretamente para proteger a sessão do usuário e facilitar a
+ * autenticação em requisições subsequentes.
+ */
 @Component
 public class JwtCookieService {
 
