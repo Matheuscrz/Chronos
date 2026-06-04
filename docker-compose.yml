@@ -1,0 +1,125 @@
+services:
+  # --- Fase 1: Fundação ---
+  postgres:
+    image: postgres:16.3-alpine
+    container_name: chronos-postgres
+    environment:
+      - POSTGRES_DB=chronos_db
+      - POSTGRES_USER=chronos_user
+      - POSTGRES_PASSWORD=chronos_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - chronos-postgres-data:/var/lib/postgresql/data
+    networks:
+      - chronos-network
+
+  # --- Fase 2: Autenticação e Autorização ---
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.0
+    container_name: chronos-keycloak
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL_HOST=postgres
+      - KC_DB_URL_DATABASE=chronos_db
+      - KC_DB_USERNAME=chronos_user
+      - KC_DB_PASSWORD=chronos_pass
+      - KC_HTTP_ENABLED=true
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - chronos-network
+
+  # --- Fase 2 (Blacklist) & Fase 5 (Cache, Rate Limiting) ---
+  redis:
+    image: redis:7.2-alpine
+    container_name: chronos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - chronos-redis-data:/data
+    networks:
+      - chronos-network
+
+  # --- Fase 4: Arquitetura Orientada a Eventos ---
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: chronos-rabbitmq
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - chronos-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - chronos-network
+
+  # --- Fase 8: Armazenamento de Arquivos ---
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-05-29T08-35-25Z
+    container_name: chronos-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio_admin
+      - MINIO_ROOT_PASSWORD=minio_password
+    ports:
+      - "9000:9000" # API port
+      - "9001:9001" # Console UI
+    volumes:
+      - chronos-minio-data:/data
+    networks:
+      - chronos-network
+
+  # --- Fase 9: Observabilidade ---
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: chronos-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - chronos-network
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: chronos-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - chronos-grafana-data:/var/lib/grafana
+    networks:
+      - chronos-network
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: chronos-loki
+    ports:
+      - "3100:3100"
+    networks:
+      - chronos-network
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: chronos-tempo
+    ports:
+      - "3200:3200" # Tempo
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    networks:
+      - chronos-network
+
+networks:
+  chronos-network:
+    driver: bridge
+
+volumes:
+  chronos-postgres-data:
+  chronos-redis-data:
+  chronos-rabbitmq-data:
+  chronos-minio-data:
+  chronos-grafana-data:
