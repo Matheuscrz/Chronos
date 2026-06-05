@@ -20,8 +20,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtCookieService {
 
-    public static final String ACCESS_COOKIE = "chronos_access_token";
-    public static final String REFRESH_COOKIE = "chronos_refresh_token";
+    public static final String ACCESS_COOKIE = "access_token";
+    public static final String REFRESH_COOKIE = "refresh_token";
 
     public ResponseCookie createAccessCookie(String token, SecurityProperties properties) {
         return buildCookie(ACCESS_COOKIE, token, Duration.ofMinutes(properties.jwt().accessTtlMinutes()),

@@ -44,7 +44,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(description = "Endpoint para consultar o perfil de um usuário por ID. Requer o ID do usuário e retorna um UserResponse com os detalhes do usuário encontrado.")
     @ApiResponse(responseCode = "200", description = "Perfil do usuário consultado com sucesso")
     @ApiResponse(responseCode = "404", description = "Usuário não encontrado com o ID fornecido")

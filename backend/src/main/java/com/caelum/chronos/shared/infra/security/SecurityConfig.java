@@ -65,7 +65,8 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(cookieCsrfTokenRepository()))
+                        .csrfTokenRepository(cookieCsrfTokenRepository())
+                        .ignoringRequestMatchers("/auth/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
