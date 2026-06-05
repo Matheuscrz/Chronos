@@ -4,13 +4,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.lang.NonNull;
 
 import com.caelum.chronos.modules.users.domain.model.User;
 
 /**
  * Repositório para a entidade User, responsável por realizar operações de
  * persistência e consulta no banco de dados.
- * Extende JpaRepository, fornecendo métodos CRUD básicos e a capacidade de
+ * Estende JpaRepository, fornecendo métodos CRUD básicos e a capacidade de
  * definir consultas personalizadas.
  * <ul>
  * <li><strong>findByUsername</strong>: Método para encontrar um usuário pelo
@@ -49,7 +50,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * @return Um Optional contendo o usuário encontrado, ou vazio se nenhum usuário
      *         for encontrado.
      */
-    Optional<User> findById(UUID id);
+    @NonNull
+    Optional<User> findById(@NonNull UUID id);
 
     /**
      * Verifica se um usuário com determinado nome de usuário já existe.

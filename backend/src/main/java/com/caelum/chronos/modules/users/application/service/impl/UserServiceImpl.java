@@ -2,6 +2,7 @@ package com.caelum.chronos.modules.users.application.service.impl;
 
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -59,7 +60,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse findById(UUID id) {
+    public UserResponse findById(@NonNull UUID id) {
         User u = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user not found"));
 

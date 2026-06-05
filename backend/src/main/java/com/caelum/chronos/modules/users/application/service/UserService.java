@@ -2,6 +2,8 @@ package com.caelum.chronos.modules.users.application.service;
 
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
+
 import com.caelum.chronos.modules.users.application.dto.request.UserRegistrationRequest;
 import com.caelum.chronos.modules.users.application.dto.response.UserResponse;
 
@@ -37,5 +39,5 @@ public interface UserService {
      * @return Um UserResponse contendo os detalhes do usuário encontrado, ou null
      *         se nenhum usuário for encontrado com o ID fornecido.
      */
-    UserResponse findById(UUID id);
+    UserResponse findById(@NonNull UUID id);
 }

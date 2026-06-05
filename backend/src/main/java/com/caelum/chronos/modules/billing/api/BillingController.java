@@ -3,6 +3,7 @@ package com.caelum.chronos.modules.billing.api;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -67,7 +68,7 @@ public class BillingController {
     @Operation(description = "Endpoint para consultar os detalhes de uma conta de cobrança, incluindo o saldo atual. Requer o ID da conta e retorna um AccountResponse com os detalhes da conta encontrada.")
     @ApiResponse(responseCode = "200", description = "Conta encontrada com sucesso")
     @ApiResponse(responseCode = "404", description = "Conta não encontrada com o ID fornecido")
-    public ResponseEntity<AccountResponse> findById(@PathVariable UUID id) {
+    public ResponseEntity<AccountResponse> findById(@PathVariable @NonNull UUID id) {
         return ResponseEntity.ok(billingService.findById(id));
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.NonNull;
 
 import com.caelum.chronos.modules.billing.domain.model.BillingAccount;
 
@@ -16,7 +17,7 @@ import jakarta.persistence.LockModeType;
  * Repositório para a entidade BillingAccount, responsável por realizar
  * operações de
  * persistência e consulta no banco de dados.
- * Extende JpaRepository, fornecendo métodos CRUD básicos e a capacidade de
+ * Estende JpaRepository, fornecendo métodos CRUD básicos e a capacidade de
  * definir consultas personalizadas.
  * <ul>
  * <li><strong>existsByOwner_Id</strong>: Método para verificar se uma conta de
@@ -63,5 +64,6 @@ public interface BillingAccountRepository extends JpaRepository<BillingAccount, 
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BillingAccount b where b.id = :id")
+    @NonNull
     Optional<BillingAccount> findByIdForUpdate(@Param("id") UUID id);
 }

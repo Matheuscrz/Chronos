@@ -1,8 +1,10 @@
 package com.caelum.chronos.modules.billing.application.service.impl;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +31,8 @@ public class BillingServiceImpl implements BillingService {
     @Override
     @Transactional
     public AccountResponse createAccount(AccountCreateRequest req) {
-        var owner = userRepository.findById(req.ownerId())
+        var ownerId = Objects.requireNonNull(req.ownerId(), "owner id cannot be null");
+        var owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("owner not found"));
 
         if (billingAccountRepository.existsByOwner_Id(owner.getId())) {
@@ -56,7 +59,6 @@ public class BillingServiceImpl implements BillingService {
                 .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 
         account.deposit(req.amount());
-        account = billingAccountRepository.save(account);
 
         return toResponse(account);
     }
@@ -68,14 +70,13 @@ public class BillingServiceImpl implements BillingService {
                 .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 
         account.withdraw(req.amount());
-        account = billingAccountRepository.save(account);
 
         return toResponse(account);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public AccountResponse findById(UUID accountId) {
+    public AccountResponse findById(@NonNull UUID accountId) {
         BillingAccount account = billingAccountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
 

@@ -10,6 +10,7 @@ import java.util.concurrent.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Objects;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -51,13 +52,13 @@ class BillingServiceConcurrencyIT {
 
     @Test
     void naoDevePermitirGastarMaisDoQueSaldoComDuasOperacoesSimultaneas() throws Exception {
-        User owner = userRepository.save(User.builder()
-                .username("owner")
-                .fullName("Owner")
-                .email("owner@test.com")
-                .passwordHash("hash")
-                .role(UserRole.CLIENTE)
-                .build());
+        User owner = Objects.requireNonNull(userRepository.save(User.builder()
+            .username("owner")
+            .fullName("Owner")
+            .email("owner@test.com")
+            .passwordHash("hash")
+            .role(UserRole.CLIENTE)
+            .build()));
 
         AccountResponse account = billingService.createAccount(new AccountCreateRequest(
                 owner.getId(),
@@ -112,13 +113,13 @@ class BillingServiceConcurrencyIT {
 
     @Test
     void naoDevePermitirSaqueMaiorQueSaldo() {
-        User owner = userRepository.save(User.builder()
-                .username("owner2")
-                .fullName("Owner 2")
-                .email("owner2@test.com")
-                .passwordHash("hash")
-                .role(UserRole.CLIENTE)
-                .build());
+        User owner = Objects.requireNonNull(userRepository.save(User.builder()
+            .username("owner2")
+            .fullName("Owner 2")
+            .email("owner2@test.com")
+            .passwordHash("hash")
+            .role(UserRole.CLIENTE)
+            .build()));
 
         AccountResponse account = billingService.createAccount(new AccountCreateRequest(
                 owner.getId(),

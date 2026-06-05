@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 import com.caelum.chronos.modules.auth.application.dto.request.LoginRequest;
 import com.caelum.chronos.modules.auth.application.service.AuthService;
 import com.caelum.chronos.modules.users.application.dto.request.UserRegistrationRequest;
@@ -55,12 +57,15 @@ public class AuthController {
     @ApiResponse(responseCode = "200", description = "Login bem-sucedido")
     @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
     public ResponseEntity<UserResponse> login(@RequestBody @Valid LoginRequest request) {
-        User user = authService.authenticate(request);
+        User user = Objects.requireNonNull(authService.authenticate(request));
 
-        String accessCookie = cookieService.createAccessCookie(jwtService.generateAccessToken(user), securityProperties)
+        String accessToken = Objects.requireNonNull(jwtService.generateAccessToken(user));
+        String refreshToken = Objects.requireNonNull(jwtService.generateRefreshToken(user));
+
+        String accessCookie = cookieService.createAccessCookie(accessToken, securityProperties)
                 .toString();
         String refreshCookie = cookieService
-                .createRefreshCookie(jwtService.generateRefreshToken(user), securityProperties).toString();
+                .createRefreshCookie(refreshToken, securityProperties).toString();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie)
@@ -74,12 +79,15 @@ public class AuthController {
     @ApiResponse(responseCode = "401", description = "Token de refresh inválido ou expirado")
     public ResponseEntity<UserResponse> refresh(
             @CookieValue(name = JwtCookieService.REFRESH_COOKIE) String refreshToken) {
-        User user = authService.refresh(refreshToken);
+        User user = Objects.requireNonNull(authService.refresh(Objects.requireNonNull(refreshToken)));
 
-        String accessCookie = cookieService.createAccessCookie(jwtService.generateAccessToken(user), securityProperties)
+        String accessToken = Objects.requireNonNull(jwtService.generateAccessToken(user));
+        String newRefreshToken = Objects.requireNonNull(jwtService.generateRefreshToken(user));
+
+        String accessCookie = cookieService.createAccessCookie(accessToken, securityProperties)
                 .toString();
         String refreshCookie = cookieService
-                .createRefreshCookie(jwtService.generateRefreshToken(user), securityProperties).toString();
+                .createRefreshCookie(newRefreshToken, securityProperties).toString();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessCookie)

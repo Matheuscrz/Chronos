@@ -13,7 +13,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 public class SwaggerConfig {
 
     @Bean
-    public OpenAPI chronosOpenAPI() {
+    OpenAPI chronosOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
                         .title("Chronos API")
