@@ -24,9 +24,12 @@ import com.caelum.chronos.modules.billing.infra.BillingAccountRepository;
 import com.caelum.chronos.modules.users.domain.enums.UserRole;
 import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.modules.users.infra.UserRepository;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration;
 
 @SpringBootTest(classes = BackendApplication.class)
 @ActiveProfiles("test")
+@EnableAutoConfiguration(exclude = OAuth2ClientAutoConfiguration.class)
 class BillingServiceConcurrencyIT {
 
     @Autowired

@@ -1,6 +1,7 @@
 package com.caelum.chronos.modules.users.application.service.impl;
 
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,6 +49,7 @@ public class UserServiceImpl implements UserService {
                 .role(UserRole.CLIENTE)
                 .build();
 
+        Objects.requireNonNull(user, "User cannot be null");
         user = userRepository.save(user);
 
         return UserResponse.builder()

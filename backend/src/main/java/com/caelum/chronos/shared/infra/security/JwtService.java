@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import com.caelum.chronos.modules.users.domain.model.User;
+import com.caelum.chronos.shared.infra.security.dto.TokenPair;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,11 +39,28 @@ public class JwtService {
     private final JwtDecoder jwtDecoder;
 
     public String generateAccessToken(User user) {
-        return encode(user, properties.jwt().accessTtlMinutes(), "access");
+        return encode(user, properties.jwt().accessTtlMinutes(), "access", UUID.randomUUID().toString()).token();
     }
 
     public String generateRefreshToken(User user) {
-        return encode(user, properties.jwt().refreshTtlDays() * 24 * 60, "refresh");
+        return encode(user, properties.jwt().refreshTtlDays() * 24 * 60, "refresh", UUID.randomUUID().toString()).token();
+    }
+
+    public TokenPair generateTokenPair(User user) {
+        String accessJti = UUID.randomUUID().toString();
+        String refreshJti = UUID.randomUUID().toString();
+
+        var access = encode(user, properties.jwt().accessTtlMinutes(), "access", accessJti);
+        var refresh = encode(user, properties.jwt().refreshTtlDays() * 24 * 60, "refresh", refreshJti);
+
+        return new TokenPair(
+            access.token(),
+            refresh.token(),
+            accessJti,
+            refreshJti,
+            access.expiresAt(),
+            refresh.expiresAt()
+        );
     }
 
     public Jwt decode(String token) {
@@ -57,19 +75,24 @@ public class JwtService {
         return UUID.fromString(jwt.getSubject());
     }
 
-    private String encode(User user, long ttlMinutes, String tokenType) {
+    private EncodedToken encode(User user, long ttlMinutes, String tokenType, String jti) {
         Instant now = Instant.now();
+        Instant expiresAt = now.plus(ttlMinutes, ChronoUnit.MINUTES);
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.jwt().issuer())
                 .issuedAt(now)
-                .expiresAt(now.plus(ttlMinutes, ChronoUnit.MINUTES))
+                .expiresAt(expiresAt)
                 .subject(user.getId().toString())
+                .id(jti)
                 .claim("username", user.getUsername())
                 .claim("role", user.getRole().name())
                 .claim("token_type", tokenType)
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(MacAlgorithm.HS256).build();
-        return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+        String token = jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+        return new EncodedToken(token, expiresAt);
     }
+
+    private record EncodedToken(String token, Instant expiresAt) {}
 }

@@ -45,6 +45,9 @@ dependencies {
     // Cache
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    // Pool para Lettuce
+    implementation 'org.apache.commons:commons-pool2'
+
     // Messaging
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
@@ -54,6 +57,17 @@ dependencies {
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // OAuth2 Client
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Bucket4j para rate limiting com suporte a Redis e fallback
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+    implementation 'com.bucket4j:bucket4j-redis:8.10.1'
+
+    // Spring Retry para fallback automático Redis → Postgres
+    implementation 'org.springframework.retry:spring-retry'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
     // Tests
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

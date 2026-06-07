@@ -11,6 +11,40 @@ spring:
     password: ${DB_PASSWORD:chronos_pass}
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1000ms}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+          max-wait: 1000ms
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${OAUTH2_CLIENT_ID:chronos-api}
+            client-secret: ${OAUTH2_CLIENT_SECRET:}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/auth/oauth2/callback"
+            scope: openid,profile,email,roles
+        provider:
+          keycloak:
+            authorization-uri: ${app.keycloak.base-url}/protocol/openid-connect/auth
+            token-uri: ${app.keycloak.base-url}/protocol/openid-connect/token
+            user-info-uri: ${app.keycloak.base-url}/protocol/openid-connect/userinfo
+            jwk-set-uri: ${app.keycloak.base-url}/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
+
   jpa:
     open-in-view: false
     hibernate:
@@ -33,6 +67,11 @@ server:
   port: 8081
 
 app:
+  keycloak:
+    # Ajuste este valor se seu Keycloak usar o prefixo /auth (ex: http://localhost:8080/auth/realms/master)
+    # E confirme se o nome do realm é realmente 'master'
+    base-url: ${KEYCLOAK_BASE_URL:http://localhost:8080/realms/master}
+
   database:
     schema: ${APP_DB_SCHEMA:chronos_app}
 

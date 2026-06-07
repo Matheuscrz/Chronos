@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -49,7 +50,7 @@ import com.caelum.chronos.shared.infra.logging.LogContext;
  * validação dos tokens JWT. Ela também inclui a configuração do PasswordEncoder
  * para garantir que as senhas dos usuários sejam armazenadas de forma segura
  * utilizando o algoritmo Argon2. A anotação @EnableMethodSecurity é utilizada
- * para habilitar a segurança em nível de método, permitindo o uso de anotações
+ * para habilita a segurança em nível de método, permitindo o uso de anotações
  * como @PreAuthorize e @PostAuthorize para controlar o acesso aos métodos com
  * base nas autoridades do usuário. A anotação @EnableConfigurationProperties é
  * utilizada para habilitar a configuração baseada em propriedades, permitindo
@@ -73,6 +74,10 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
             SecurityProperties properties,
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitFilter rateLimitFilter,
+            OAuth2SuccessHandler oAuth2SuccessHandler,
+            OAuth2FailureHandler oAuth2FailureHandler,
+            HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository,
             ObjectMapper objectMapper) throws Exception {
 
         http
@@ -81,13 +86,24 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(auth -> auth
+                                .baseUri("/oauth2/authorization")
+                                .authorizationRequestRepository(cookieAuthorizationRequestRepository))
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/auth/oauth2/callback"))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(unauthorizedEntryPoint(objectMapper))
                         .accessDeniedHandler(forbiddenHandler(objectMapper)))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(
                             "/auth/**",
+                            "/login/**",
+                            "/oauth2/**",
                             "/swagger-ui/**",
                             "/swagger-ui.html",
                             "/v3/api-docs",
@@ -126,10 +142,15 @@ public class SecurityConfig {
         return new NimbusJwtEncoder(new ImmutableSecret<>(key));
     }
 
-    @Bean
-    JwtDecoder jwtDecoder(SecurityProperties properties) {
+    @Bean(name = "localJwtDecoder")
+    JwtDecoder localJwtDecoder(SecurityProperties properties) {
         SecretKey key = secretKey(properties.jwt().secret());
         return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") String jwkSetUri) {
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
     private CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
