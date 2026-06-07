@@ -16,6 +16,7 @@ import com.caelum.chronos.modules.billing.domain.enums.BillingAccountStatus;
 import com.caelum.chronos.modules.billing.domain.model.BillingAccount;
 import com.caelum.chronos.modules.billing.infra.BillingAccountRepository;
 import com.caelum.chronos.modules.users.infra.UserRepository;
+import com.caelum.chronos.shared.exception.NotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,7 +24,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BillingServiceImpl implements BillingService {
 
-    private static final String ACCOUNT_NOT_FOUND = "account not found";
+    private static final String ACCOUNT_NOT_FOUND = "Conta não encontrada";
+    private static final String USER_NOT_FOUND = "Usuário não encontrado";
 
     private final BillingAccountRepository billingAccountRepository;
     private final UserRepository userRepository;
@@ -31,12 +33,12 @@ public class BillingServiceImpl implements BillingService {
     @Override
     @Transactional
     public AccountResponse createAccount(AccountCreateRequest req) {
-        var ownerId = Objects.requireNonNull(req.ownerId(), "owner id cannot be null");
+        var ownerId = Objects.requireNonNull(req.ownerId(), "id do usuário é obrigatório");
         var owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("owner not found"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND));
 
         if (billingAccountRepository.existsByOwner_Id(owner.getId())) {
-            throw new IllegalArgumentException("owner already has an account");
+            throw new IllegalArgumentException("Já existe uma conta para este usuário!");
         }
 
         BigDecimal initialBalance = req.initialBalance() == null ? BigDecimal.ZERO : req.initialBalance();
@@ -56,7 +58,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional
     public AccountResponse deposit(UUID accountId, MoneyOperationRequest req) {
         BillingAccount account = billingAccountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND));
 
         account.deposit(req.amount());
 
@@ -67,7 +69,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional
     public AccountResponse withdraw(UUID accountId, MoneyOperationRequest req) {
         BillingAccount account = billingAccountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND));
 
         account.withdraw(req.amount());
 
@@ -78,7 +80,7 @@ public class BillingServiceImpl implements BillingService {
     @Transactional(readOnly = true)
     public AccountResponse findById(@NonNull UUID accountId) {
         BillingAccount account = billingAccountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException(ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND));
 
         return toResponse(account);
     }
