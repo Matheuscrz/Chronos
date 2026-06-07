@@ -16,6 +16,7 @@ import com.caelum.chronos.modules.users.application.dto.response.UserResponse;
 import com.caelum.chronos.modules.users.domain.enums.UserRole;
 import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.modules.users.infra.UserRepository;
+import com.caelum.chronos.shared.exception.NotFoundException;
 
 class UserServiceImplTest {
 
@@ -64,7 +65,7 @@ class UserServiceImplTest {
 
         assertThatThrownBy(() -> service.createUser(req))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("username already exists");
+                .hasMessage("Já existe uma conta com este nome de usuário!");
     }
 
     @Test
@@ -75,7 +76,7 @@ class UserServiceImplTest {
 
         assertThatThrownBy(() -> service.createUser(req))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("email already exists");
+                .hasMessage("Já existe um usuário com este e-mail!");
     }
 
     @Test
@@ -102,7 +103,7 @@ class UserServiceImplTest {
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findById(id))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("user not found");
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Usuário não encontrado!");
     }
 }

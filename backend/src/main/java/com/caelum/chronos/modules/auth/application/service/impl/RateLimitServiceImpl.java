@@ -4,7 +4,9 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.stereotype.Service;
 
 import com.caelum.chronos.modules.auth.application.service.RateLimitService;
@@ -13,8 +15,9 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.Refill;
+import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
+import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
-import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -26,34 +29,45 @@ import lombok.extern.slf4j.Slf4j;
 public class RateLimitServiceImpl implements RateLimitService {
 
     private final RedisConnectionFactory redisConnectionFactory;
-    private ProxyManager<byte[]> proxyManager;
+    private ProxyManager<String> proxyManager;
     private final Map<String, Bucket> localBuckets = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
         try {
-            // Simplificação para obter a conexão nativa do Lettuce
-            // Em produção, deve-se usar o RedisClient configurado no Spring
-            log.info("Initializing Redis Rate Limiting Proxy Manager");
-            // Nota: bucket4j-redis-lettuce requer configuração específica.
-            // Aqui estamos apenas esboçando a integração.
+            if (redisConnectionFactory instanceof LettuceConnectionFactory) {
+                RedisConnection connection = redisConnectionFactory.getConnection();
+                Object nativeConnection = connection.getNativeConnection();
+                
+                if (nativeConnection instanceof StatefulRedisConnection) {
+                    this.proxyManager = LettuceBasedProxyManager.builderFor((StatefulRedisConnection<String, byte[]>) nativeConnection)
+                            .withExpirationStrategy(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(1)))
+                            .build();
+                    log.info("Redis Rate Limiting initialized successfully.");
+                }
+                connection.close(); // Importante fechar a conexão obtida manualmente
+            }
         } catch (Exception e) {
-            log.error("Failed to initialize Redis Proxy Manager for Rate Limiting", e);
+            log.warn("Failed to initialize Redis Rate Limiting, falling back to local memory: {}", e.getMessage());
         }
     }
 
     @Override
     public Bucket resolveBucket(String key) {
-        return localBuckets.computeIfAbsent(key, k -> {
-            BucketConfiguration config = BucketConfiguration.builder()
-                    .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
-                    .build();
-            
-            // Aqui poderíamos usar o proxyManager para distribuir o bucket no Redis.
-            // Se falhar, retornamos um bucket local (fallback).
-            return Bucket.builder()
-                    .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
-                    .build();
-        });
+        BucketConfiguration config = BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .build();
+
+        if (proxyManager != null) {
+            try {
+                return proxyManager.builder().build(key, config);
+            } catch (Exception e) {
+                log.warn("Redis Rate Limiting failed for key {}, falling back to local: {}", key, e.getMessage());
+            }
+        }
+
+        return localBuckets.computeIfAbsent(key, k -> Bucket.builder()
+                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .build());
     }
 }

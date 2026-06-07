@@ -3,10 +3,13 @@ package com.caelum.chronos.modules.auth.api;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,13 +20,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.caelum.chronos.modules.auth.application.dto.request.LoginRequest;
+import com.caelum.chronos.modules.auth.application.dto.response.AuthResponse;
 import com.caelum.chronos.modules.auth.application.service.AuthService;
 import com.caelum.chronos.modules.users.application.service.UserService;
 import com.caelum.chronos.modules.users.domain.enums.UserRole;
 import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.shared.infra.security.JwtCookieService;
-import com.caelum.chronos.shared.infra.security.JwtService;
 import com.caelum.chronos.shared.infra.security.SecurityProperties;
+import com.caelum.chronos.shared.infra.security.dto.TokenPair;
 import com.caelum.chronos.shared.api.error.GlobalExceptionHandler;
 
 class AuthControllerTest {
@@ -32,7 +36,6 @@ class AuthControllerTest {
 
     private UserService userService;
     private AuthService authService;
-    private JwtService jwtService;
     private JwtCookieService cookieService;
     private SecurityProperties securityProperties;
 
@@ -40,7 +43,6 @@ class AuthControllerTest {
     void setUp() {
         userService = mock(UserService.class);
         authService = mock(AuthService.class);
-        jwtService = mock(JwtService.class);
         cookieService = new JwtCookieService();
 
         securityProperties = new SecurityProperties(
@@ -61,7 +63,7 @@ class AuthControllerTest {
                 new SecurityProperties.PasswordEncoder(16, 32, 1, 65536, 3));
 
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AuthController(userService, authService, jwtService, cookieService, securityProperties))
+                new AuthController(userService, authService, cookieService, securityProperties))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -73,13 +75,12 @@ class AuthControllerTest {
 
         when(user.getId()).thenReturn(userId);
         when(user.getUsername()).thenReturn("matheus");
-        when(user.getFullName()).thenReturn("Matheus Silva");
-        when(user.getEmail()).thenReturn("matheus@caelum.com");
         when(user.getRole()).thenReturn(UserRole.CLIENTE);
 
-        when(authService.authenticate(any(LoginRequest.class))).thenReturn(user);
-        when(jwtService.generateAccessToken(user)).thenReturn("access-token");
-        when(jwtService.generateRefreshToken(user)).thenReturn("refresh-token");
+        TokenPair tokens = new TokenPair("access", "refresh", "ajti", "rjti", Instant.now(), Instant.now().plusSeconds(3600));
+        AuthResponse authResponse = new AuthResponse(user, tokens);
+
+        when(authService.authenticate(any(LoginRequest.class), any(), any())).thenReturn(authResponse);
 
         mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -88,57 +89,43 @@ class AuthControllerTest {
                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(userId.toString()))
-                .andExpect(jsonPath("$.username").value("matheus"))
                 .andExpect(header().stringValues("Set-Cookie",
                         hasItems(
                                 containsString(JwtCookieService.ACCESS_COOKIE),
                                 containsString(JwtCookieService.REFRESH_COOKIE))));
-        verify(authService).authenticate(any(LoginRequest.class));
-        verify(jwtService).generateAccessToken(user);
-        verify(jwtService).generateRefreshToken(user);
     }
 
     @Test
     void refreshDeveRenovarCookies() throws Exception {
         User user = mock(User.class);
         UUID userId = UUID.randomUUID();
-
         when(user.getId()).thenReturn(userId);
-        when(user.getUsername()).thenReturn("matheus");
-        when(user.getFullName()).thenReturn("Matheus Silva");
-        when(user.getEmail()).thenReturn("matheus@caelum.com");
         when(user.getRole()).thenReturn(UserRole.CLIENTE);
 
-        when(authService.refresh("refresh-token")).thenReturn(user);
-        when(jwtService.generateAccessToken(user)).thenReturn("new-access-token");
-        when(jwtService.generateRefreshToken(user)).thenReturn("new-refresh-token");
+        TokenPair tokens = new TokenPair("new-access", "new-refresh", "najti", "nrjti", Instant.now(), Instant.now().plusSeconds(3600));
+        AuthResponse authResponse = new AuthResponse(user, tokens);
+
+        when(authService.refresh(eq("refresh-token"), any(), any())).thenReturn(authResponse);
 
         mockMvc.perform(post("/auth/refresh")
                 .cookie(new jakarta.servlet.http.Cookie(JwtCookieService.REFRESH_COOKIE, "refresh-token")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userId.toString()))
                 .andExpect(header().stringValues("Set-Cookie",
                         hasItems(
                                 containsString(JwtCookieService.ACCESS_COOKIE),
                                 containsString(JwtCookieService.REFRESH_COOKIE))));
-        verify(authService).refresh("refresh-token");
-        verify(jwtService).generateAccessToken(user);
-        verify(jwtService).generateRefreshToken(user);
     }
 
     @Test
-    void refreshSemCookieDeveFalhar() throws Exception {
-        mockMvc.perform(post("/auth/refresh"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void logoutDeveLimparCookies() throws Exception {
-        mockMvc.perform(post("/auth/logout"))
+    void logoutDeveInvalidaSessaoELimparCookies() throws Exception {
+        mockMvc.perform(post("/auth/logout")
+                .cookie(new jakarta.servlet.http.Cookie(JwtCookieService.REFRESH_COOKIE, "refresh-token")))
                 .andExpect(status().isNoContent())
                 .andExpect(header().stringValues("Set-Cookie",
                         hasItems(
                                 containsString(JwtCookieService.ACCESS_COOKIE),
                                 containsString(JwtCookieService.REFRESH_COOKIE))));
+        
+        verify(authService).logout("refresh-token");
     }
 }

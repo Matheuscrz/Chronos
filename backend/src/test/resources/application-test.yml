@@ -22,9 +22,33 @@ spring:
     placeholders:
       app_schema: ${app.database.schema}
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8080/realms/chronos/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: chronos-api
+            client-secret: secret
+            authorization-grant-type: authorization_code
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/chronos
+
 app:
   database:
-    schema: ${APP_DB_SCHEMA:chronos_app_test}
+    schema: chronos_app_test
+
+  security:
+    jwt:
+      secret: "test-secret-test-secret-test-secret-test-secret"
+      access-ttl-minutes: 15
+      refresh-ttl-days: 7
+      cookie-secure: false
+      cookie-same-site: Strict
+      issuer: chronos-api
 
 logging:
   level:

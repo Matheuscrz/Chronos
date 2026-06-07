@@ -2,6 +2,7 @@ package com.caelum.chronos.modules.auth.application.service.impl;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,7 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AuthSessionServiceImpl implements AuthSessionService {
 
-    private static final String REDIS_PREFIX = "session:";
+    private static final String SESSION_KEY_PREFIX = "session:";
+    private static final String USER_SESSIONS_PREFIX = "user:sessions:";
+    
     private final RedisTemplate<String, Object> redisTemplate;
     private final AuthSessionRepository repository;
 
@@ -34,15 +37,19 @@ public class AuthSessionServiceImpl implements AuthSessionService {
     public void save(AuthSession session) {
         repository.save(session);
         try {
-            String key = REDIS_PREFIX + session.getJti();
+            String sessionKey = SESSION_KEY_PREFIX + session.getJti();
+            String userSessionsKey = USER_SESSIONS_PREFIX + session.getUserId();
+            
             AuthSessionDTO dto = AuthSessionDTO.fromEntity(session);
             long ttl = Duration.between(Instant.now(), session.getExpiresAt()).toSeconds();
+            
             if (ttl > 0) {
-                redisTemplate.opsForValue().set(key, dto, Duration.ofSeconds(ttl));
+                redisTemplate.opsForValue().set(sessionKey, dto, Duration.ofSeconds(ttl));
+                redisTemplate.opsForSet().add(userSessionsKey, session.getJti());
+                redisTemplate.expire(userSessionsKey, Duration.ofDays(7));
             }
         } catch (Exception e) {
-            log.error("Failed to save session to Redis, but it was saved to DB. JTI: {}", session.getJti(), e);
-            // Não bloqueia para falhas no redis
+            log.error("Failed to save session to Redis. JTI: {}", session.getJti(), e);
         }
     }
 
@@ -50,14 +57,14 @@ public class AuthSessionServiceImpl implements AuthSessionService {
     @Retryable(retryFor = Exception.class, maxAttempts = 2, backoff = @Backoff(delay = 500))
     public boolean isValid(String jti) {
         try {
-            String key = REDIS_PREFIX + jti;
+            String key = SESSION_KEY_PREFIX + jti;
             AuthSessionDTO dto = (AuthSessionDTO) redisTemplate.opsForValue().get(key);
             if (dto != null) {
                 return !dto.revoked() && dto.expiresAt().isAfter(Instant.now());
             }
         } catch (Exception e) {
-            log.warn("Redis is down, falling back to database for JTI: {}", jti);
-            throw e; // Trigger retry/recover
+            log.warn("Redis error during session validation, falling back to DB. JTI: {}", jti);
+            throw e;
         }
 
         return repository.findByJti(jti)
@@ -67,7 +74,7 @@ public class AuthSessionServiceImpl implements AuthSessionService {
 
     @Recover
     public boolean isValidRecover(Exception e, String jti) {
-        log.info("Recovering from Redis failure for session validation. JTI: {}", jti);
+        log.info("Recovering session validation from DB for JTI: {}", jti);
         return repository.findByJti(jti)
                 .map(s -> !s.isRevoked() && s.getExpiresAt().isAfter(Instant.now()))
                 .orElse(false);
@@ -81,8 +88,8 @@ public class AuthSessionServiceImpl implements AuthSessionService {
             session.revoke();
             repository.save(session);
             try {
-                String key = REDIS_PREFIX + jti;
-                redisTemplate.delete(key);
+                redisTemplate.delete(SESSION_KEY_PREFIX + jti);
+                redisTemplate.opsForSet().remove(USER_SESSIONS_PREFIX + session.getUserId(), jti);
             } catch (Exception e) {
                 log.error("Failed to revoke session in Redis. JTI: {}", jti, e);
             }
@@ -94,9 +101,15 @@ public class AuthSessionServiceImpl implements AuthSessionService {
     @Retryable(retryFor = Exception.class, maxAttempts = 2, backoff = @Backoff(delay = 500))
     public void revokeAllByUserId(UUID userId) {
         repository.deleteByUserId(userId);
-        // Em um cenário real, poderíamos querer iterar e deletar do Redis ou usar um set para rastrear sessões do usuário.
-        // Para simplicidade, vamos apenas logar e talvez implementar um padrão de exclusão se necessário.
-        // TODO: Implementar exclusão de sessões do Redis para o usuário, se necessário.
-        log.warn("Revoking all sessions for user {} in DB. Redis sessions will expire or need manual cleanup.", userId);
+        try {
+            String userSessionsKey = USER_SESSIONS_PREFIX + userId;
+            Set<Object> jtis = redisTemplate.opsForSet().members(userSessionsKey);
+            if (jtis != null) {
+                jtis.forEach(jti -> redisTemplate.delete(SESSION_KEY_PREFIX + jti));
+            }
+            redisTemplate.delete(userSessionsKey);
+        } catch (Exception e) {
+            log.error("Failed to revoke all sessions in Redis for user: {}", userId, e);
+        }
     }
 }
