@@ -1,15 +1,22 @@
 package com.caelum.chronos.modules.auth.application.service.impl;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.caelum.chronos.modules.auth.application.service.RateLimitService;
+import com.caelum.chronos.modules.auth.domain.model.RateLimitBuckets;
+import com.caelum.chronos.modules.auth.infra.repository.RateLimitRepository;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -29,8 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 public class RateLimitServiceImpl implements RateLimitService {
 
     private final RedisConnectionFactory redisConnectionFactory;
+    private final RateLimitRepository repository;
     private ProxyManager<String> proxyManager;
     private final Map<String, Bucket> localBuckets = new ConcurrentHashMap<>();
+
+    private static final int DEFAULT_CAPACITY = 10;
+    private static final int DEFAULT_REFILL_TOKENS = 10;
+    private static final Duration DEFAULT_REFILL_DURATION = Duration.ofMinutes(1);
 
     @PostConstruct
     public void init() {
@@ -54,18 +66,13 @@ public class RateLimitServiceImpl implements RateLimitService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to initialize Redis Rate Limiting, falling back to local memory: {}", e.getMessage());
+            log.warn("Failed to initialize Redis Rate Limiting, falling back to database/local: {}", e.getMessage());
         }
     }
 
     @Override
     public Bucket resolveBucket(String key) {
-        BucketConfiguration config = BucketConfiguration.builder()
-                .addLimit(Bandwidth.builder()
-                        .capacity(10)
-                        .refillGreedy(10, Duration.ofMinutes(1))
-                        .build())
-                .build();
+        BucketConfiguration config = createDefaultConfig();
 
         if (proxyManager != null) {
             try {
@@ -77,9 +84,69 @@ public class RateLimitServiceImpl implements RateLimitService {
 
         return localBuckets.computeIfAbsent(key, k -> Bucket.builder()
                 .addLimit(Bandwidth.builder()
-                        .capacity(10)
-                        .refillGreedy(10, Duration.ofMinutes(1))
+                        .capacity(DEFAULT_CAPACITY)
+                        .refillGreedy(DEFAULT_REFILL_TOKENS, DEFAULT_REFILL_DURATION)
                         .build())
                 .build());
+    }
+
+    @Override
+    @Retryable(retryFor = Exception.class, maxAttempts = 2, backoff = @Backoff(delay = 500))
+    public boolean tryConsume(String key) {
+        try {
+            Bucket bucket = resolveBucket(key);
+            return bucket.tryConsume(1);
+        } catch (Exception e) {
+            log.warn("Rate limit check failed in Redis/Local for key {}, falling back to database.", key);
+            throw e;
+        }
+    }
+
+    @Recover
+    @Transactional
+    public boolean tryConsumeRecover(Exception e, String key) {
+        log.info("Recovering rate limit check from database for key: {}", key);
+        
+        RateLimitBuckets bucket = repository.findById(key)
+                .orElseGet(() -> RateLimitBuckets.builder()
+                        .bucketKey(key)
+                        .tokens(DEFAULT_CAPACITY)
+                        .lastRefillAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build());
+
+        refill(bucket);
+
+        if (bucket.getTokens() >= 1) {
+            bucket.setTokens(bucket.getTokens() - 1);
+            repository.save(bucket);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void refill(RateLimitBuckets bucket) {
+        Instant now = Instant.now();
+        long secondsSinceLastRefill = Duration.between(bucket.getLastRefillAt(), now).toSeconds();
+        
+        if (secondsSinceLastRefill <= 0) return;
+
+        double refillRate = (double) DEFAULT_REFILL_TOKENS / DEFAULT_REFILL_DURATION.toSeconds();
+        int tokensToAdd = (int) (secondsSinceLastRefill * refillRate);
+        
+        if (tokensToAdd > 0) {
+            bucket.setTokens(Math.min(DEFAULT_CAPACITY, bucket.getTokens() + tokensToAdd));
+            bucket.setLastRefillAt(now);
+        }
+    }
+
+    private BucketConfiguration createDefaultConfig() {
+        return BucketConfiguration.builder()
+                .addLimit(Bandwidth.builder()
+                        .capacity(DEFAULT_CAPACITY)
+                        .refillGreedy(DEFAULT_REFILL_TOKENS, DEFAULT_REFILL_DURATION)
+                        .build())
+                .build();
     }
 }
