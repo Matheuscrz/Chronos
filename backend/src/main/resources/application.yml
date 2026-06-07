@@ -39,10 +39,10 @@ spring:
             scope: openid,profile,email,roles
         provider:
           keycloak:
-            authorization-uri: ${OAUTH2_AUTH_URI:http://localhost:8080/realms/main/protocol/openid-connect/auth}
-            token-uri: ${OAUTH2_TOKEN_URI:http://localhost:8080/realms/main/protocol/openid-connect/token}
-            user-info-uri: ${OAUTH2_USER_INFO_URI:http://localhost:8080/realms/main/protocol/openid-connect/userinfo}
-            jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://localhost:8080/realms/main/protocol/openid-connect/certs}
+            authorization-uri: ${app.keycloak.base-url}/protocol/openid-connect/auth
+            token-uri: ${app.keycloak.base-url}/protocol/openid-connect/token
+            user-info-uri: ${app.keycloak.base-url}/protocol/openid-connect/userinfo
+            jwk-set-uri: ${app.keycloak.base-url}/protocol/openid-connect/certs
             user-name-attribute: preferred_username
 
   jpa:
@@ -68,7 +68,9 @@ server:
 
 app:
   keycloak:
-    base-url: ${KEYCLOAK_BASE_URL:http://localhost:8080/realms/main}
+    # Ajuste este valor se seu Keycloak usar o prefixo /auth (ex: http://localhost:8080/auth/realms/master)
+    # E confirme se o nome do realm é realmente 'master'
+    base-url: ${KEYCLOAK_BASE_URL:http://localhost:8080/realms/master}
 
   database:
     schema: ${APP_DB_SCHEMA:chronos_app}

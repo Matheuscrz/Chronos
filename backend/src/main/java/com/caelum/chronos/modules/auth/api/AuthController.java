@@ -88,6 +88,12 @@ public class AuthController {
                 .build();
     }
 
+    @GetMapping("/oauth2/logout")
+    @Operation(summary = "Endpoint para o logout via Keycloak (Front channel logout)")
+    public ResponseEntity<Void> oauth2Logout() {
+        return ResponseEntity.ok().build();
+    }
+
     private ResponseEntity<UserResponse> setAuthCookiesAndResponse(User user, TokenPair tokens) {
         String accessCookie = cookieService.createAccessCookie(tokens.accessToken(), securityProperties)
                 .toString();
