@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -141,10 +142,15 @@ public class SecurityConfig {
         return new NimbusJwtEncoder(new ImmutableSecret<>(key));
     }
 
-    @Bean
-    JwtDecoder jwtDecoder(SecurityProperties properties) {
+    @Bean(name = "localJwtDecoder")
+    JwtDecoder localJwtDecoder(SecurityProperties properties) {
         SecretKey key = secretKey(properties.jwt().secret());
         return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.client.provider.keycloak.jwk-set-uri}") String jwkSetUri) {
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
     private CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {

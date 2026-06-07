@@ -2,6 +2,10 @@ package com.caelum.chronos.shared.infra.security;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -42,18 +46,18 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             Authentication authentication) throws IOException, ServletException {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        log.info("OAuth2 Login Success. Attributes: {}", oAuth2User.getAttributes());
+        
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
         String preferredUsername = oAuth2User.getAttribute("preferred_username");
+        UserRole mappedRole = mapRole(oAuth2User);
 
-        if (email == null) {
-            log.error("Email not found in OAuth2 attributes");
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Email não fornecido pelo provedor de identidade");
-            return;
-        }
-
-        User user = userRepository.findByEmail(email)
-                .orElseGet(() -> createOAuth2User(email, name, preferredUsername));
+        // Tenta encontrar por email ou username para sincronizar
+        User user = userRepository.findByEmail(email != null ? email : "none")
+                .or(() -> preferredUsername != null ? userRepository.findByUsername(preferredUsername) : Optional.empty())
+                .map(existingUser -> syncUser(existingUser, email, name, mappedRole))
+                .orElseGet(() -> createOAuth2User(email, name, preferredUsername, oAuth2User.getName(), mappedRole));
 
         TokenPair tokens = jwtService.generateTokenPair(user);
         
@@ -65,29 +69,63 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie);
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie);
 
-        auditService.log(SecurityEventType.LOGIN_SUCCESS, user.getId(), user.getUsername(), request.getRemoteAddr(), request.getHeader("User-Agent"), "SUCCESS", "Login via OAuth2 (Keycloak)");
+        auditService.log(SecurityEventType.LOGIN_SUCCESS, user.getId(), user.getUsername(), request.getRemoteAddr(), request.getHeader("User-Agent"), "SUCCESS", "Login via OAuth2 (Keycloak) - Sync complete");
 
-        // Redireciona para o frontend (ajustar conforme necessário)
+        // Redireciona para o frontend
         String targetUrl = securityProperties.cors().allowedOrigins().get(0);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
-    private User createOAuth2User(String email, String name, String username) {
-        String finalUsername = username != null ? username : email.split("@")[0];
+    private User syncUser(User user, String email, String name, UserRole role) {
+        log.info("Syncing existing local user: {} with role: {}", user.getUsername(), role);
         
-        // Garante que o username é único se já existir um com o mesmo nome
+        if (name != null && !name.isBlank()) {
+            user.setFullName(name);
+        }
+        
+        if (email != null && !email.equalsIgnoreCase(user.getEmail())) {
+            user.setEmail(email);
+        }
+
+        if (role != null) {
+            user.setRole(role);
+        }
+        
+        return userRepository.save(user);
+    }
+
+    private User createOAuth2User(String email, String name, String username, String sub, UserRole role) {
+        String finalUsername = username != null ? username : (email != null ? email.split("@")[0] : "user_" + sub.substring(0, 8));
+        
         if (userRepository.existsByUsername(finalUsername)) {
             finalUsername = finalUsername + "_" + Instant.now().getEpochSecond();
         }
 
         User user = User.builder()
                 .email(email)
-                .fullName(name)
+                .fullName(name != null ? name : finalUsername)
                 .username(finalUsername)
-                .role(UserRole.CLIENTE) // Papel padrão
+                .role(role != null ? role : UserRole.CLIENTE)
                 .build();
 
+        log.info("Provisioning new local user from OAuth2: {} with role: {}", finalUsername, user.getRole());
         return userRepository.save(user);
+    }
+
+    @SuppressWarnings("unchecked")
+    private UserRole mapRole(OAuth2User oAuth2User) {
+        // No Keycloak as roles costumam vir em 'realm_access.roles'
+        Map<String, Object> realmAccess = oAuth2User.getAttribute("realm_access");
+        if (realmAccess != null) {
+            List<String> roles = (List<String>) realmAccess.get("roles");
+            if (roles != null) {
+                // Procura por nossas roles conhecidas (admin, tecnico, cliente)
+                if (roles.contains("admin")) return UserRole.ADMIN;
+                if (roles.contains("tecnico")) return UserRole.TECNICO;
+                if (roles.contains("cliente")) return UserRole.CLIENTE;
+            }
+        }
+        return UserRole.CLIENTE;
     }
 
     private void createSession(User user, TokenPair tokens, HttpServletRequest request) {
