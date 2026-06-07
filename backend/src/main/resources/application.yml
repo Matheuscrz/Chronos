@@ -11,6 +11,39 @@ spring:
     password: ${DB_PASSWORD:chronos_pass}
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1000ms}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+          max-wait: 1000ms
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://localhost:8080/realms/chronos/protocol/openid-connect/certs}
+      client:
+        registration:
+          keycloak:
+            client-id: ${OAUTH2_CLIENT_ID:chronos-api}
+            client-secret: ${OAUTH2_CLIENT_SECRET:}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/auth/oauth2/callback"
+            scope: openid,profile,email,roles
+        provider:
+          keycloak:
+            issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/chronos}
+
   jpa:
     open-in-view: false
     hibernate:
@@ -57,21 +90,6 @@ app:
       parallelism: ${ARGON2_PARALLELISM:1}
       memory: ${ARGON2_MEMORY:65536}
       iterations: ${ARGON2_ITERATIONS:3}
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://localhost:8080/realms/chronos/protocol/openid-connect/certs}
-      client:
-        registration:
-          keycloak:
-            client-id: ${OAUTH2_CLIENT_ID:chronos-api}
-            client-secret: ${OAUTH2_CLIENT_SECRET}
-            authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/auth/oauth2/callback"
-            scope: openid,profile,email,roles
-        provider:
-          keycloak:
-            issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/chronos}
 
 management:
   endpoints:

@@ -1,37 +1,38 @@
 package com.caelum.chronos.modules.auth.application.service;
 
 import com.caelum.chronos.modules.auth.application.dto.request.LoginRequest;
-import com.caelum.chronos.modules.users.domain.model.User;
+import com.caelum.chronos.modules.auth.application.dto.response.AuthResponse;
 
 /**
  * Interface de serviço para autenticação de usuários. Define os métodos para
  * autenticar um usuário com base em suas credenciais de login e para atualizar
- * a
- * sessão do usuário usando um token de refresh. A implementação desta interface
- * é responsável por validar as credenciais do usuário, gerar tokens de
- * autenticação e refresh, e garantir que apenas usuários autenticados possam
- * acessar os recursos protegidos do sistema.
+ * a sessão do usuário usando um token de refresh.
  */
 public interface AuthService {
     /**
-     * Autentica um usuário com base em suas credenciais de login e senha.
+     * Autentica um usuário e cria uma nova sessão.
      *
-     * @param request O objeto contendo as credenciais de login do usuário.
-     * @return O usuário autenticado, caso as credenciais sejam válidas.
-     * @throws InvalidCredentialsException Se as credenciais forem inválidas ou o
-     *                                     usuário não for encontrado.
+     * @param request O objeto contendo as credenciais de login.
+     * @param ipAddress O endereço IP do usuário.
+     * @param userAgent O User-Agent do navegador/dispositivo.
+     * @return O usuário e o par de tokens.
      */
-    User authenticate(LoginRequest request);
+    AuthResponse authenticate(LoginRequest request, String ipAddress, String userAgent);
 
     /**
-     * Atualiza a sessão do usuário usando um token de refresh, retornando o usuário
-     * associado ao token.
+     * Atualiza a sessão do usuário usando um token de refresh.
      * 
-     * @param refreshToken O token de refresh utilizado para atualizar a sessão do
-     *                     usuário.
-     * @return O usuário associado ao token de refresh, caso o token seja válido.
-     * @throws InvalidCredentialsException Se o token de refresh for inválido ou o
-     *                                     usuário não for encontrado.
+     * @param refreshToken O token de refresh.
+     * @param ipAddress O endereço IP do usuário.
+     * @param userAgent O User-Agent do navegador/dispositivo.
+     * @return O usuário e o novo par de tokens.
      */
-    User refresh(String refreshToken);
+    AuthResponse refresh(String refreshToken, String ipAddress, String userAgent);
+
+    /**
+     * Invalida uma sessão específica.
+     * 
+     * @param refreshToken O token de refresh da sessão a ser invalidada.
+     */
+    void logout(String refreshToken);
 }
