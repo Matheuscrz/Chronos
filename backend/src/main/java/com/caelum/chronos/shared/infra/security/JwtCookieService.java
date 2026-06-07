@@ -1,8 +1,10 @@
 package com.caelum.chronos.shared.infra.security;
 
 import java.time.Duration;
+import java.util.Objects;
 
 import org.springframework.http.ResponseCookie;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,16 +22,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtCookieService {
 
-    public static final String ACCESS_COOKIE = "chronos_access_token";
-    public static final String REFRESH_COOKIE = "chronos_refresh_token";
+    public static final String ACCESS_COOKIE = "access_token";
+    public static final String REFRESH_COOKIE = "refresh_token";
 
-    public ResponseCookie createAccessCookie(String token, SecurityProperties properties) {
-        return buildCookie(ACCESS_COOKIE, token, Duration.ofMinutes(properties.jwt().accessTtlMinutes()),
+    public ResponseCookie createAccessCookie(@NonNull String token, SecurityProperties properties) {
+        return buildCookie(ACCESS_COOKIE, token, Objects.requireNonNull(Duration.ofMinutes(properties.jwt().accessTtlMinutes())),
                 properties.jwt().cookieSecure(), properties.jwt().cookieSameSite());
     }
 
-    public ResponseCookie createRefreshCookie(String token, SecurityProperties properties) {
-        return buildCookie(REFRESH_COOKIE, token, Duration.ofDays(properties.jwt().refreshTtlDays()),
+    public ResponseCookie createRefreshCookie(@NonNull String token, SecurityProperties properties) {
+        return buildCookie(REFRESH_COOKIE, token, Objects.requireNonNull(Duration.ofDays(properties.jwt().refreshTtlDays())),
                 properties.jwt().cookieSecure(), properties.jwt().cookieSameSite());
     }
 
@@ -39,7 +41,7 @@ public class JwtCookieService {
                 .secure(properties.jwt().cookieSecure())
                 .sameSite(properties.jwt().cookieSameSite())
                 .path("/")
-                .maxAge(Duration.ZERO)
+                .maxAge(0)
                 .build();
     }
 
@@ -49,11 +51,11 @@ public class JwtCookieService {
                 .secure(properties.jwt().cookieSecure())
                 .sameSite(properties.jwt().cookieSameSite())
                 .path("/")
-                .maxAge(Duration.ZERO)
+                .maxAge(0)
                 .build();
     }
 
-    private ResponseCookie buildCookie(String name, String value, Duration ttl, boolean secure, String sameSite) {
+    private ResponseCookie buildCookie(@NonNull String name, @NonNull String value, @NonNull Duration ttl, boolean secure, String sameSite) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(secure)

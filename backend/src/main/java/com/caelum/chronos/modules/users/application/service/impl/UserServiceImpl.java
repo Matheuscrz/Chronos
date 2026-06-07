@@ -2,6 +2,7 @@ package com.caelum.chronos.modules.users.application.service.impl;
 
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import com.caelum.chronos.modules.users.application.service.UserService;
 import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.modules.users.domain.enums.UserRole;
 import com.caelum.chronos.modules.users.infra.UserRepository;
+import com.caelum.chronos.shared.exception.NotFoundException;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +32,10 @@ public class UserServiceImpl implements UserService {
         String email = sanitizeEmail(req.email());
 
         if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("username already exists");
+            throw new IllegalArgumentException("Já existe uma conta com este nome de usuário!");
         }
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("email already exists");
+            throw new IllegalArgumentException("Já existe um usuário com este e-mail!");
         }
 
         String hash = passwordEncoder.encode(req.password());
@@ -59,9 +61,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse findById(UUID id) {
+    public UserResponse findById(@NonNull UUID id) {
         User u = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("user not found"));
+                .orElseThrow(() -> new NotFoundException("Usuário não encontrado!"));
 
         return UserResponse.builder()
                 .id(u.getId())

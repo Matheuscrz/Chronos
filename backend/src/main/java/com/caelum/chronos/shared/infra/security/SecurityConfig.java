@@ -4,14 +4,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -20,13 +25,19 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.http.MediaType;
 
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.caelum.chronos.shared.infra.logging.LogContext;
 
 /**
  * Configuração de segurança para a aplicação, definindo as regras de
@@ -61,16 +72,19 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
             SecurityProperties properties,
-            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            ObjectMapper objectMapper) throws Exception {
 
         http
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(cookieCsrfTokenRepository()))
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(unauthorizedEntryPoint(objectMapper))
+                        .accessDeniedHandler(forbiddenHandler(objectMapper)))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(
                             "/auth/**",
@@ -131,10 +145,6 @@ public class SecurityConfig {
         return source;
     }
 
-    private CookieCsrfTokenRepository cookieCsrfTokenRepository() {
-        return new CookieCsrfTokenRepository();
-    }
-
     private List<String> normalize(List<String> values) {
         if (values == null) {
             return List.of();
@@ -147,5 +157,61 @@ public class SecurityConfig {
 
     private SecretKey secretKey(String secret) {
         return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+    }
+
+    private AuthenticationEntryPoint unauthorizedEntryPoint(ObjectMapper objectMapper) {
+        return (request, response, authException) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+            String correlationId = (String) request.getAttribute(LogContext.CORRELATION_ID);
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("timestamp", Instant.now().toString());
+            error.put("status", HttpServletResponse.SC_UNAUTHORIZED);
+            error.put("error", "Unauthorized");
+            error.put("message", "Não autenticado");
+            error.put("path", request.getRequestURI());
+            error.put("correlationId", correlationId);
+            error.put("fieldErrors", List.of());
+
+            response.getWriter().write(objectMapper.writeValueAsString(error));
+        };
+    }
+
+    private AccessDeniedHandler forbiddenHandler(ObjectMapper objectMapper) {
+        return (request, response, accessDeniedException) -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || auth instanceof AnonymousAuthenticationToken) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+                String correlationId = (String) request.getAttribute(LogContext.CORRELATION_ID);
+                Map<String, Object> error = new LinkedHashMap<>();
+                error.put("timestamp", Instant.now().toString());
+                error.put("status", HttpServletResponse.SC_UNAUTHORIZED);
+                error.put("error", "Unauthorized");
+                error.put("message", "Não autenticado");
+                error.put("path", request.getRequestURI());
+                error.put("correlationId", correlationId);
+                error.put("fieldErrors", List.of());
+
+                response.getWriter().write(objectMapper.writeValueAsString(error));
+            } else {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+                String correlationId = (String) request.getAttribute(LogContext.CORRELATION_ID);
+                Map<String, Object> error = new LinkedHashMap<>();
+                error.put("timestamp", Instant.now().toString());
+                error.put("status", HttpServletResponse.SC_FORBIDDEN);
+                error.put("error", "Forbidden");
+                error.put("message", "Acesso negado");
+                error.put("path", request.getRequestURI());
+                error.put("correlationId", correlationId);
+                error.put("fieldErrors", List.of());
+
+                response.getWriter().write(objectMapper.writeValueAsString(error));
+            }
+        };
     }
 }

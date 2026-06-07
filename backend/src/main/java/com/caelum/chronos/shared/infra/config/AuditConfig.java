@@ -1,6 +1,7 @@
 package com.caelum.chronos.shared.infra.config;
 
 import java.util.Optional;
+import org.springframework.lang.NonNull;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,14 +29,19 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 public class AuditConfig {
 
     @Bean
+    @SuppressWarnings("null")
     AuditorAware<String> auditorAware() {
-        return () -> {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null || auth instanceof AnonymousAuthenticationToken || !auth.isAuthenticated()
-                    || auth.getPrincipal() == null) {
-                return Optional.of("system");
+        return new AuditorAware<String>() {
+            @Override
+            @NonNull
+            public Optional<String> getCurrentAuditor() {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth == null || auth instanceof AnonymousAuthenticationToken
+                        || !auth.isAuthenticated() || auth.getPrincipal() == null) {
+                    return Optional.of("system");
+                }
+                return Optional.ofNullable(auth.getName());
             }
-            return Optional.ofNullable(auth.getName());
         };
     }
 }

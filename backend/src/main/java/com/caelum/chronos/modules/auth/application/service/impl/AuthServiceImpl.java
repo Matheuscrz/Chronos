@@ -1,6 +1,7 @@
 package com.caelum.chronos.modules.auth.application.service.impl;
 
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,9 +49,14 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException();
         }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        String subject = jwt.getSubject();
+        if (subject == null || subject.isBlank()) {
+            throw new InvalidCredentialsException();
+        }
+
+        UUID userId = Objects.requireNonNull(UUID.fromString(subject));
         return userRepository.findById(userId)
-                .orElseThrow(InvalidCredentialsException::new);
+            .orElseThrow(InvalidCredentialsException::new);
     }
 
     private String sanitize(String value) {

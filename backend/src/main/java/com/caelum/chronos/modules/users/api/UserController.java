@@ -1,8 +1,10 @@
 package com.caelum.chronos.modules.users.api;
 
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -35,20 +37,20 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
     @Operation(description = "Endpoint para consultar o perfil do usuário autenticado. Retorna um UserResponse com os detalhes do usuário autenticado.")
     @ApiResponse(responseCode = "200", description = "Perfil do usuário consultado com sucesso")
     @ApiResponse(responseCode = "401", description = "Usuário não autenticado")
     public ResponseEntity<UserResponse> me(@Parameter(hidden = true) Authentication authentication) {
-        return ResponseEntity.ok(userService.findById(UUID.fromString(authentication.getName())));
+        UUID userId = Objects.requireNonNull(UUID.fromString(authentication.getName()));
+        return ResponseEntity.ok(userService.findById(userId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(description = "Endpoint para consultar o perfil de um usuário por ID. Requer o ID do usuário e retorna um UserResponse com os detalhes do usuário encontrado.")
     @ApiResponse(responseCode = "200", description = "Perfil do usuário consultado com sucesso")
     @ApiResponse(responseCode = "404", description = "Usuário não encontrado com o ID fornecido")
-    public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
+    public ResponseEntity<UserResponse> findById(@PathVariable @NonNull UUID id) {
         return ResponseEntity.ok(userService.findById(id));
     }
 }

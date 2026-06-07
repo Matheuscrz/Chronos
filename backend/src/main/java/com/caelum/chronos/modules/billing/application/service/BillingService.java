@@ -2,6 +2,8 @@ package com.caelum.chronos.modules.billing.application.service;
 
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
+
 import com.caelum.chronos.modules.billing.application.dto.request.AccountCreateRequest;
 import com.caelum.chronos.modules.billing.application.dto.request.MoneyOperationRequest;
 import com.caelum.chronos.modules.billing.application.dto.response.AccountResponse;
@@ -69,5 +71,5 @@ public interface BillingService {
      *         incluindo
      *         o ID da conta, ID do proprietário, saldo e status.
      */
-    AccountResponse findById(UUID accountId);
+    AccountResponse findById(@NonNull UUID accountId);
 }
