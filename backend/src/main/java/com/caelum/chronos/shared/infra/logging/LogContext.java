@@ -58,6 +58,14 @@ public final class LogContext {
         put(SPAN_ID, spanId);
     }
 
+    public static String getCorrelationId() {
+        return MDC.get(CORRELATION_ID);
+    }
+
+    public static String getUserId() {
+        return MDC.get(USER_ID);
+    }
+
     public static void clearEvent() {
         MDC.remove(EVENT_ID);
         MDC.remove(EVENT_TYPE);

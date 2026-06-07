@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.caelum.chronos.modules.auth.application.service.RateLimitService;
 import com.caelum.chronos.modules.auth.domain.model.RateLimitBuckets;
 import com.caelum.chronos.modules.auth.infra.repository.RateLimitRepository;
+import com.caelum.chronos.shared.infra.security.audit.SecurityAuditService;
+import com.caelum.chronos.shared.infra.security.audit.SecurityAuditService.SecurityEventType;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -37,6 +39,7 @@ public class RateLimitServiceImpl implements RateLimitService {
 
     private final RedisConnectionFactory redisConnectionFactory;
     private final RateLimitRepository repository;
+    private final SecurityAuditService auditService;
     private ProxyManager<String> proxyManager;
     private final Map<String, Bucket> localBuckets = new ConcurrentHashMap<>();
 
@@ -67,6 +70,7 @@ public class RateLimitServiceImpl implements RateLimitService {
             }
         } catch (Exception e) {
             log.warn("Failed to initialize Redis Rate Limiting, falling back to database/local: {}", e.getMessage());
+            auditService.logRedisFallback("RateLimitInit", "global", e.getMessage());
         }
     }
 
@@ -95,7 +99,11 @@ public class RateLimitServiceImpl implements RateLimitService {
     public boolean tryConsume(String key) {
         try {
             Bucket bucket = resolveBucket(key);
-            return bucket.tryConsume(1);
+            boolean allowed = bucket.tryConsume(1);
+            if (!allowed) {
+                auditService.log(SecurityEventType.RATE_LIMIT_EXCEEDED, null, null, null, null, "BLOCKED", "Key: " + key);
+            }
+            return allowed;
         } catch (Exception e) {
             log.warn("Rate limit check failed in Redis/Local for key {}, falling back to database.", key);
             throw e;
@@ -106,6 +114,7 @@ public class RateLimitServiceImpl implements RateLimitService {
     @Transactional
     public boolean tryConsumeRecover(Exception e, String key) {
         log.info("Recovering rate limit check from database for key: {}", key);
+        auditService.logRedisFallback("RateLimitConsume", key, e.getMessage());
         
         RateLimitBuckets bucket = repository.findById(key)
                 .orElseGet(() -> RateLimitBuckets.builder()
@@ -123,6 +132,7 @@ public class RateLimitServiceImpl implements RateLimitService {
             return true;
         }
 
+        auditService.log(SecurityEventType.RATE_LIMIT_EXCEEDED, null, null, null, null, "BLOCKED_DB", "Key: " + key);
         return false;
     }
 

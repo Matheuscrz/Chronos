@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.caelum.chronos.modules.auth.application.service.TokenBlacklistService;
 import com.caelum.chronos.modules.auth.domain.model.TokenBlacklist;
 import com.caelum.chronos.modules.auth.infra.repository.TokenBlacklistRepository;
+import com.caelum.chronos.shared.infra.security.audit.SecurityAuditService;
+import com.caelum.chronos.shared.infra.security.audit.SecurityAuditService.SecurityEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class TokenBlacklistServiceImpl implements TokenBlacklistService {
     private static final String REDIS_PREFIX = "blacklist:";
     private final RedisTemplate<String, Object> redisTemplate;
     private final TokenBlacklistRepository repository;
+    private final SecurityAuditService auditService;
 
     @Override
     @Transactional
@@ -48,8 +51,10 @@ public class TokenBlacklistServiceImpl implements TokenBlacklistService {
             if (ttl > 0) {
                 redisTemplate.opsForValue().set(key, "revoked", Duration.ofSeconds(ttl));
             }
+            auditService.log(SecurityEventType.TOKEN_BLACKLISTED, userId, null, null, null, "SUCCESS", "JTI: " + jti + ", Reason: " + reason);
         } catch (Exception e) {
             log.error("Failed to add token to Redis blacklist. JTI: {}", jti, e);
+            auditService.logRedisFallback("BlacklistAdd", jti, e.getMessage());
         }
     }
 
@@ -68,6 +73,7 @@ public class TokenBlacklistServiceImpl implements TokenBlacklistService {
     @Recover
     public boolean isBlacklistedRecover(Exception e, String jti) {
         log.info("Recovering from Redis failure for blacklist check. JTI: {}", jti);
+        auditService.logRedisFallback("BlacklistCheck", jti, e.getMessage());
         return repository.existsByJti(jti);
     }
 }
