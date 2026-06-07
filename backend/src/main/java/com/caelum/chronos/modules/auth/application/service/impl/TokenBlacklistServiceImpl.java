@@ -3,6 +3,7 @@ package com.caelum.chronos.modules.auth.application.service.impl;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
@@ -38,6 +39,7 @@ public class TokenBlacklistServiceImpl implements TokenBlacklistService {
                 .expiresAt(expiresAt)
                 .build();
 
+        Objects.requireNonNull(blacklistEntry, "Blacklist entry cannot be null");
         repository.save(blacklistEntry);
 
         try {

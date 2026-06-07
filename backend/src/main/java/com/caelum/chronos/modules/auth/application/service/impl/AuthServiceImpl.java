@@ -1,6 +1,7 @@
 package com.caelum.chronos.modules.auth.application.service.impl;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -67,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException();
         }
 
-        UUID userId = jwtService.getUserId(jwt);
+        UUID userId = Objects.requireNonNull(jwtService.getUserId(jwt), "User ID cannot be null");
         User user = userRepository.findById(userId)
             .orElseThrow(InvalidCredentialsException::new);
 

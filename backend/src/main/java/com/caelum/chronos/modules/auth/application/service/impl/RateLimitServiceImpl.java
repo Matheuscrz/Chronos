@@ -14,8 +14,8 @@ import com.caelum.chronos.modules.auth.application.service.RateLimitService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
-import io.github.bucket4j.Refill;
 import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
+import io.github.bucket4j.distributed.proxy.ClientSideConfig;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -35,17 +35,23 @@ public class RateLimitServiceImpl implements RateLimitService {
     @PostConstruct
     public void init() {
         try {
-            if (redisConnectionFactory instanceof LettuceConnectionFactory) {
-                RedisConnection connection = redisConnectionFactory.getConnection();
-                Object nativeConnection = connection.getNativeConnection();
-                
-                if (nativeConnection instanceof StatefulRedisConnection) {
-                    this.proxyManager = LettuceBasedProxyManager.builderFor((StatefulRedisConnection<String, byte[]>) nativeConnection)
-                            .withExpirationStrategy(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(1)))
-                            .build();
-                    log.info("Redis Rate Limiting initialized successfully.");
+            if (redisConnectionFactory instanceof LettuceConnectionFactory lettuceFactory) {
+                try (RedisConnection connection = lettuceFactory.getConnection()) {
+                    Object nativeConnection = connection.getNativeConnection();
+                    
+                    if (nativeConnection instanceof StatefulRedisConnection<?, ?> statefulConnection) {
+                        @SuppressWarnings("unchecked")
+                        StatefulRedisConnection<String, byte[]> lettuceConnection = (StatefulRedisConnection<String, byte[]>) statefulConnection;
+                        
+                        ClientSideConfig clientSideConfig = ClientSideConfig.getDefault()
+                                .withExpirationAfterWriteStrategy(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(1)));
+
+                        this.proxyManager = LettuceBasedProxyManager.builderFor(lettuceConnection)
+                                .withClientSideConfig(clientSideConfig)
+                                .build();
+                        log.info("Redis Rate Limiting initialized successfully.");
+                    }
                 }
-                connection.close(); // Importante fechar a conexão obtida manualmente
             }
         } catch (Exception e) {
             log.warn("Failed to initialize Redis Rate Limiting, falling back to local memory: {}", e.getMessage());
@@ -55,7 +61,10 @@ public class RateLimitServiceImpl implements RateLimitService {
     @Override
     public Bucket resolveBucket(String key) {
         BucketConfiguration config = BucketConfiguration.builder()
-                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder()
+                        .capacity(10)
+                        .refillGreedy(10, Duration.ofMinutes(1))
+                        .build())
                 .build();
 
         if (proxyManager != null) {
@@ -67,7 +76,10 @@ public class RateLimitServiceImpl implements RateLimitService {
         }
 
         return localBuckets.computeIfAbsent(key, k -> Bucket.builder()
-                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder()
+                        .capacity(10)
+                        .refillGreedy(10, Duration.ofMinutes(1))
+                        .build())
                 .build());
     }
 }

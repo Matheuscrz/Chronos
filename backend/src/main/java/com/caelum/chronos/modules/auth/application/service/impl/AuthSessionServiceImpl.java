@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
@@ -35,16 +36,20 @@ public class AuthSessionServiceImpl implements AuthSessionService {
     @Transactional
     @Retryable(retryFor = Exception.class, maxAttempts = 2, backoff = @Backoff(delay = 500))
     public void save(AuthSession session) {
+        Objects.requireNonNull(session, "Session cannot be null");
         repository.save(session);
         try {
             String sessionKey = SESSION_KEY_PREFIX + session.getJti();
             String userSessionsKey = USER_SESSIONS_PREFIX + session.getUserId();
             
             AuthSessionDTO dto = AuthSessionDTO.fromEntity(session);
-            long ttl = Duration.between(Instant.now(), session.getExpiresAt()).toSeconds();
+            Instant expiresAt = session.getExpiresAt();
+            if (expiresAt == null) return;
+
+            long ttlSeconds = Duration.between(Instant.now(), expiresAt).toSeconds();
             
-            if (ttl > 0) {
-                redisTemplate.opsForValue().set(sessionKey, dto, Duration.ofSeconds(ttl));
+            if (ttlSeconds > 0) {
+                redisTemplate.opsForValue().set(sessionKey, dto, Duration.ofSeconds(ttlSeconds));
                 redisTemplate.opsForSet().add(userSessionsKey, session.getJti());
                 redisTemplate.expire(userSessionsKey, Duration.ofDays(7));
             }
