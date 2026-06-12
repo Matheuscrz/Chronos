@@ -77,6 +77,7 @@ public class SecurityConfig {
             RateLimitFilter rateLimitFilter,
             OAuth2SuccessHandler oAuth2SuccessHandler,
             OAuth2FailureHandler oAuth2FailureHandler,
+            CircuitBreakerOidcUserService oidcUserService,
             HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository,
             ObjectMapper objectMapper) throws Exception {
 
@@ -86,6 +87,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
+                .headers(headers -> headers
+                        .xssProtection(xss -> xss.headerValue(org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'; script-src 'self'; object-src 'none';"))
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(contentType -> {})
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000)))
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
@@ -94,6 +101,7 @@ public class SecurityConfig {
                                 .authorizationRequestRepository(cookieAuthorizationRequestRepository))
                         .redirectionEndpoint(redirection -> redirection
                                 .baseUri("/auth/oauth2/callback"))
+                        .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService))
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler))
                 .exceptionHandling(ex -> ex
@@ -111,7 +119,8 @@ public class SecurityConfig {
                             "/v3/api-docs.yaml",
                             "/webjars/**",
                             "/actuator/health/**",
-                            "/actuator/info")
+                            "/actuator/info",
+                            "/ws/**")
                             .permitAll();
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
