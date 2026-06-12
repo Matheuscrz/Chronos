@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.5'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "org.sonarqube" version "7.3.1.8318"
 }
 
 group = 'com.caelum.chronos'
@@ -27,6 +28,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
     // API Documentation
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
@@ -76,4 +78,11 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+sonar {
+  properties {
+    property "sonar.projectKey", "Matheuscrz_Chronos"
+    property "sonar.organization", "matheuscrz"
+  }
 }

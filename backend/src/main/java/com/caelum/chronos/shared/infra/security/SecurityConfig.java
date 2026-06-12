@@ -111,7 +111,8 @@ public class SecurityConfig {
                             "/v3/api-docs.yaml",
                             "/webjars/**",
                             "/actuator/health/**",
-                            "/actuator/info")
+                            "/actuator/info",
+                            "/ws/**")
                             .permitAll();
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 

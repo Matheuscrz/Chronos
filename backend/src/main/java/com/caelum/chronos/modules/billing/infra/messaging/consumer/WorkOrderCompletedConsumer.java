@@ -10,6 +10,7 @@ import com.caelum.chronos.modules.billing.application.service.BillingService;
 import com.caelum.chronos.modules.billing.domain.model.BillingAccount;
 import com.caelum.chronos.modules.billing.infra.BillingAccountRepository;
 import com.caelum.chronos.modules.workorders.domain.events.WorkOrderCompletedEvent;
+import com.caelum.chronos.shared.application.service.NotificationService;
 import com.caelum.chronos.shared.infra.config.messaging.RabbitMQConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -24,6 +25,7 @@ public class WorkOrderCompletedConsumer {
     private final BillingService billingService;
     private final BillingAccountRepository billingAccountRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     @RabbitListener(queues = RabbitMQConfig.WORK_ORDER_COMPLETED_QUEUE)
     public void consume(String payload) throws IOException {
@@ -40,6 +42,11 @@ public class WorkOrderCompletedConsumer {
             billingService.withdraw(account.getId(), new MoneyOperationRequest(event.totalAmount()));
             
             log.info("Successfully processed billing for WorkOrder: {}", event.workOrderId());
+
+            // Enviar notificação em tempo real via WebSocket
+            notificationService.sendNotification("/topic/workorders/" + event.clientId(), 
+                    "Faturamento processado para a Ordem de Serviço: " + event.workOrderId());
+
         } catch (Exception e) {
             log.error("Failed to process billing for WorkOrder: {}", event.workOrderId(), e);
             // Ao lançar a exceção, o RabbitMQ fará o retry baseado na configuração do application.yml

@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "workOrders", key = "#id")
     public WorkOrderResponse findById(UUID id) {
         return workOrderRepository.findById(id)
                 .map(this::toResponse)
@@ -50,6 +53,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "workOrders", key = "#id")
     public WorkOrderResponse assign(UUID id, UUID technicianId) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
@@ -60,6 +64,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "workOrders", key = "#id")
     public WorkOrderResponse start(UUID id) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
@@ -70,6 +75,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "workOrders", key = "#id")
     public WorkOrderResponse complete(UUID id) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
@@ -110,6 +116,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "workOrders", key = "#id")
     public WorkOrderResponse cancel(UUID id, String reason) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
@@ -120,6 +127,7 @@ public class WorkOrderServiceImpl implements WorkOrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "workOrders", key = "#id")
     public WorkOrderResponse addItem(UUID id, WorkOrderItemRequest request) {
         WorkOrder workOrder = workOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
