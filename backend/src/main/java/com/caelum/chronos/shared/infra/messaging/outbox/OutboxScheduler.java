@@ -2,7 +2,6 @@ package com.caelum.chronos.shared.infra.messaging.outbox;
 
 import java.util.List;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OutboxScheduler {
 
     private final OutboxRepository outboxRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final MessagePublisher messagePublisher;
     private static final int MAX_RETRIES = 5;
 
     @Scheduled(fixedDelay = 5000)
@@ -36,7 +35,7 @@ public class OutboxScheduler {
                 String routingKey = getRoutingKeyFor(event.getEventType());
 
                 if (exchange != null && routingKey != null) {
-                    rabbitTemplate.convertAndSend(exchange, routingKey, event.getPayload());
+                    messagePublisher.publish(exchange, routingKey, event.getPayload());
                     event.setStatus(OutboxEvent.OutboxStatus.PROCESSED);
                     event.setProcessedAt(java.time.Instant.now());
                 } else {

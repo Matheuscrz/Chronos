@@ -10,6 +10,11 @@ spring:
     username: ${DB_USERNAME:chronos_user}
     password: ${DB_PASSWORD:chronos_pass}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 2000
+      validation-timeout: 1000
+      max-lifetime: 600000
+      maximum-pool-size: 10
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -83,8 +88,35 @@ spring:
     placeholders:
       app_schema: ${app.database.schema}
 
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      keycloak:
+        baseConfig: default
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      rabbitmq:
+        baseConfig: default
+
 server:
   port: 8081
+  forward-headers-strategy: framework
 
 app:
   keycloak:
