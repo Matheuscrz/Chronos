@@ -6,10 +6,12 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = "com.caelum.chronos")
 @EnableAsync
 @EnableRetry
+@EnableScheduling
 @EnableJpaRepositories(basePackages = {
 		"com.caelum.chronos.modules",
 		"com.caelum.chronos.shared.infra"

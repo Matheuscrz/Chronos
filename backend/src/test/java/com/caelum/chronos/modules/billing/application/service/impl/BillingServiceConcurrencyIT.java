@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Objects;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -26,6 +27,8 @@ import com.caelum.chronos.modules.users.domain.model.User;
 import com.caelum.chronos.modules.users.infra.UserRepository;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 @SpringBootTest(classes = BackendApplication.class)
 @ActiveProfiles("test")
@@ -43,6 +46,12 @@ class BillingServiceConcurrencyIT {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    ClientRegistrationRepository clientRegistrationRepository;
+
+    @MockBean
+    RabbitTemplate rabbitTemplate;
 
     @BeforeEach
     void limparDados() {

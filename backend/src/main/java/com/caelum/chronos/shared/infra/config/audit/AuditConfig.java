@@ -1,4 +1,4 @@
-package com.caelum.chronos.shared.infra.config;
+package com.caelum.chronos.shared.infra.config.audit;
 
 import java.util.Optional;
 import org.springframework.lang.NonNull;

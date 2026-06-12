@@ -12,10 +12,12 @@ import com.caelum.chronos.modules.workorders.application.dto.request.WorkOrderIt
 import com.caelum.chronos.modules.workorders.application.dto.response.WorkOrderItemResponse;
 import com.caelum.chronos.modules.workorders.application.dto.response.WorkOrderResponse;
 import com.caelum.chronos.modules.workorders.application.service.WorkOrderService;
+import com.caelum.chronos.modules.workorders.domain.events.WorkOrderCompletedEvent;
 import com.caelum.chronos.modules.workorders.domain.model.WorkOrder;
 import com.caelum.chronos.modules.workorders.domain.model.WorkOrderItem;
 import com.caelum.chronos.modules.workorders.infra.repository.WorkOrderRepository;
 import com.caelum.chronos.shared.exception.NotFoundException;
+import com.caelum.chronos.shared.infra.messaging.outbox.OutboxService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class WorkOrderServiceImpl implements WorkOrderService {
 
     private final WorkOrderRepository workOrderRepository;
+    private final OutboxService outboxService;
 
     @Override
     @Transactional
@@ -72,8 +75,37 @@ public class WorkOrderServiceImpl implements WorkOrderService {
                 .orElseThrow(() -> new NotFoundException("Ordem de serviço não encontrada"));
         
         workOrder.complete();
-        // Aqui futuramente dispararemos o evento de conclusão para o billing
-        return toResponse(workOrderRepository.save(workOrder));
+        workOrder = workOrderRepository.save(workOrder);
+
+        publishCompletedEvent(workOrder);
+
+        return toResponse(workOrder);
+    }
+
+    private void publishCompletedEvent(WorkOrder workOrder) {
+        BigDecimal totalAmount = workOrder.getItems().stream()
+                .map(WorkOrderItem::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        var eventItems = workOrder.getItems().stream()
+                .map(item -> new WorkOrderCompletedEvent.Item(
+                        item.getInventoryItemId(),
+                        item.getQuantity(),
+                        item.getUnitPrice()))
+                .collect(Collectors.toList());
+
+        WorkOrderCompletedEvent event = new WorkOrderCompletedEvent(
+                workOrder.getId(),
+                workOrder.getClientId(),
+                totalAmount,
+                workOrder.getCompletedAt(),
+                eventItems);
+
+        outboxService.saveEvent(
+                workOrder.getId(),
+                "WorkOrder",
+                "WorkOrderCompleted",
+                event);
     }
 
     @Override
